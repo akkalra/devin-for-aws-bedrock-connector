@@ -72,7 +72,7 @@ class Agent:
         dest = Path(workdir) / sess.id
         skip = shutil.ignore_patterns("__pycache__", ".pytest_cache", ".git", "runs", Path(workdir).name)
         shutil.copytree(source_repo, dest, symlinks=True, ignore=skip)
-        subprocess.run("git init -q && git add -A && git -c user.email=agent@demo -c user.name=agent commit -qm base",
+        subprocess.run("git init -q && git add -A && git -c user.email=agent@demo -c user.name=agent commit -qm base && git tag base",
                        shell=True, cwd=dest, check=False)
         sess.repo_dir = str(dest.resolve())
         self.sessions[sess.id] = sess
@@ -135,7 +135,7 @@ class Agent:
         sess.summary = "Stopped: step limit reached."
 
     def _review(self, sess: AgentSession) -> None:
-        sess.diff = subprocess.run("git diff", shell=True, cwd=sess.repo_dir, capture_output=True, text=True).stdout
+        sess.diff = subprocess.run("git add -A && git diff --cached base", shell=True, cwd=sess.repo_dir, capture_output=True, text=True).stdout
         tests = self._run_tool(sess, "run_command", {"command": "python -m pytest -q"}, log=False)
         prompt = (f"Task: {sess.task}\n\nDiff:\n{sess.diff[:8000] or '(no changes)'}\n\nTest output:\n{tests[-2000:]}\n\n"
                   "Write a 3-bullet PR description: what changed, why, and verification.")
