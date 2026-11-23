@@ -1,0 +1,28 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "InvokeApprovedModelsOnly",
+      "Effect": "Allow",
+      "Action": ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
+      "Resource": [
+        "arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-4-5-*",
+        "arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-*",
+        "arn:aws:bedrock:*:*:inference-profile/us.anthropic.claude-sonnet-4-5-*",
+        "arn:aws:bedrock:*:*:inference-profile/us.anthropic.claude-haiku-4-5-*"
+      ]
+    },
+    {
+      "Sid": "ApplyGuardrail",
+      "Effect": "Allow",
+      "Action": ["bedrock:ApplyGuardrail"],
+      "Resource": "arn:aws:bedrock:*:*:guardrail/*"
+    },
+    {
+      "Sid": "UseBedrockApiKeys",
+      "Effect": "Allow",
+      "Action": ["bedrock:CallWithBearerToken"],
+      "Resource": "*"
+    }
+  ]
+}
