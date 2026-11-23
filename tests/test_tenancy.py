@@ -3,6 +3,7 @@ import json
 import time
 
 import boto3
+import pytest
 from botocore.stub import Stubber
 from fastapi.testclient import TestClient
 
@@ -187,3 +188,34 @@ def test_agentcore_runtime_deploy_request_matches_api():
             "agentRuntimeId": "devin_bedrock_agent-abc", "agentRuntimeVersion": "1", "createdAt": 0,
             "status": "CREATING", "workloadIdentityDetails": {"workloadIdentityArn": "arn:x"}}, req)
         ctl.create_agent_runtime(**req)
+
+
+def test_anonymous_callers_only_see_demo_org(monkeypatch):
+    c = TestClient(create_app(Settings(mode="mock")))
+    tok = c.post("/v1/auth/login", json={"email": "dev@acme.com"}).json()["session_token"]
+    c.put("/v1/org/bedrock-key", json={"api_key": "ABSK" + "x" * 40}, headers={"x-devin-session": tok})
+    sid = c.post("/v1/agent/sessions", json={}, headers={"x-devin-session": tok}).json()["id"]
+    assert c.get(f"/v1/agent/sessions/{sid}").status_code == 404
+    assert all(s["org_id"] == "demo" for s in c.get("/v1/stats").json()["sessions"])
+    assert all(r["org_id"] == "demo" for r in c.get("/v1/stats").json()["recent"])
+
+
+def test_assumed_role_client_signs_sigv4_despite_process_api_key(monkeypatch):
+    from bedrock_connector.bedrock import BedrockClient
+    monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "process-key")
+    sess = boto3.Session(aws_access_key_id="AKIAEXAMPLE", aws_secret_access_key="x", aws_session_token="t",
+                         region_name="us-east-1")
+    client, seen = BedrockClient(Settings(mode="live"), "us-east-1", boto_session=sess), {}
+
+    def grab(request, **kw):
+        seen["auth"] = request.headers["Authorization"]
+        raise RuntimeError("stop")
+    client._client.meta.events.register("before-send", grab)
+    with pytest.raises(RuntimeError):
+        client.converse("m", [{"role": "user", "content": [{"text": "hi"}]}])
+    assert seen["auth"].startswith(b"AWS4-HMAC-SHA256")
+
+
+def test_external_id_is_stable_across_restarts():
+    from bedrock_connector.tenancy import TenantStore
+    assert TenantStore().orgs["globex"].external_id == TenantStore().orgs["globex"].external_id
