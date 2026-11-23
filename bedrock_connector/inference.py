@@ -104,14 +104,14 @@ class InferenceService:
             candidates = self.router.candidates(role, ctx.org)
         client = self.factory.client_for(ctx)
         tried: list[str] = []
-        for model in candidates:
+        for i, model in enumerate(candidates):
             try:
                 res = client.converse(model, messages, system=system, tools=tools, max_tokens=max_tokens,
                                       temperature=temperature)
             except Exception as e:
                 err = getattr(e, "response", {}).get("Error", {})
                 no_access = err.get("Code") == "AccessDeniedException" and "model" in err.get("Message", "").lower()
-                if (err.get("Code") in FALLBACK_CODES or no_access) and model != candidates[-1]:
+                if (err.get("Code") in FALLBACK_CODES or no_access) and i < len(candidates) - 1:
                     tried.append(model)
                     continue
                 raise
