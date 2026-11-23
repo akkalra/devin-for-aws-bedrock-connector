@@ -146,9 +146,14 @@ def create_app(settings: Settings | None = None, client=None, vault=None) -> Fas
 
     @app.put("/v1/org/settings")
     async def org_settings(request: Request, p: Principal = Depends(org_admin)):
-        body = await request.json()
+        try:
+            body = await request.json()
+        except ValueError as e:
+            raise HTTPException(400, "body must be JSON") from e
+        if not isinstance(body, dict):
+            raise HTTPException(400, "body must be a JSON object")
         if (body.get("credential_source", p.org.credential_source) == "devin_managed"
-                and body.get("region", p.org.region) != settings.region):
+                and str(body.get("region", p.org.region)).strip() != settings.region):
             raise HTTPException(400, f"Devin-managed inference runs in {settings.region}; "
                                      "use your own key or role for another region")
         try:
