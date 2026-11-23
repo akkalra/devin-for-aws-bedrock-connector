@@ -6,7 +6,7 @@ import json
 import os
 from pathlib import Path
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
@@ -79,6 +79,8 @@ def create_app(settings: Settings | None = None, client=None, vault=None) -> Fas
     def me(p: Principal) -> dict:
         return {"user": p.user.__dict__ if p.user else None, "org": p.org.public(),
                 "routing": {r: router.candidates(r, p.org) for r in settings.role_models},
+                "default_routing": {r: router.candidates(r, replace(p.org, devin_managed_routing=True))
+                                    for r in settings.role_models},
                 "credential_vault": stack.vault.name,
                 "agent_runtime": "agentcore" if settings.agentcore_runtime_arn else "local"}
 

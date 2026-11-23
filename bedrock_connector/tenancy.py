@@ -115,6 +115,6 @@ class TenantStore:
             raise ValueError("region must be an AWS region such as us-east-1")
         with self._lock:
             org.credential_source, org.role_arn, org.region = src, role_arn, region
-            org.routing_overrides = {r: list(dict.fromkeys(ms)) for r, ms in overrides.items()}
+            org.routing_overrides = {r: list(dict.fromkeys(ms)) for r, ms in overrides.items() if ms}
             org.devin_managed_routing = bool(body.get("devin_managed_routing", org.devin_managed_routing))
         return org
