@@ -20,6 +20,12 @@ def is_bedrock_model_id(name: str) -> bool:
         or name.startswith("arn:aws:bedrock")
 
 
+def geo_profile(model_id: str, region: str) -> str:
+    """Point a `us.` cross-region inference profile at the org region's geography."""
+    geo = {"eu": "eu", "ap": "apac"}.get(region.split("-", 1)[0], "us")
+    return f"{geo}.{model_id[3:]}" if model_id.startswith("us.") else model_id
+
+
 class ModelRouter:
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -36,6 +42,8 @@ class ModelRouter:
         if org is not None and not org.devin_managed_routing and org.routing_overrides.get(role):
             return list(org.routing_overrides[role])
         chain = [self.for_role(role)] + self.settings.fallbacks.get(role, [])
+        if org is not None:
+            chain = [geo_profile(m, org.region) for m in chain]
         return list(dict.fromkeys(chain))
 
     def resolve(self, requested: str | None) -> tuple[str, str]:
