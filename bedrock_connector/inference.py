@@ -62,9 +62,7 @@ class ClientFactory:
         if self.mock:
             return self.base
         if org.credential_source == "devin_managed":
-            if org.region == self.settings.region:
-                return self.base
-            return self._cached(("managed", org.region), lambda: (BedrockClient(self.settings, org.region), 1e18))
+            return self.base  # Devin's account and Guardrail live in the gateway region
         if org.credential_source == "customer_api_key":
             cache_key = ("key", org.id, org.region, hashlib.sha256(key.encode()).hexdigest())
             return self._cached(cache_key, lambda: (BedrockClient(self.settings, org.region, api_key=key), 1e18))

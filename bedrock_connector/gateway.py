@@ -144,8 +144,13 @@ def create_app(settings: Settings | None = None, client=None, vault=None) -> Fas
 
     @app.put("/v1/org/settings")
     async def org_settings(request: Request, p: Principal = Depends(org_admin)):
+        body = await request.json()
+        if (body.get("credential_source", p.org.credential_source) == "devin_managed"
+                and body.get("region", p.org.region) != settings.region):
+            raise HTTPException(400, f"Devin-managed inference runs in {settings.region}; "
+                                     "use your own key or role for another region")
         try:
-            tenants.update_org(p.org, await request.json())
+            tenants.update_org(p.org, body)
         except ValueError as e:
             raise HTTPException(400, str(e)) from e
         return me(p)
