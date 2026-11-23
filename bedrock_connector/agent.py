@@ -76,7 +76,7 @@ class Agent:
             return {n for n in names
                     if n in ("__pycache__", ".pytest_cache", ".git") or os.path.realpath(os.path.join(d, n)) == workroot}
         shutil.copytree(source_repo, dest, symlinks=True, ignore=skip)
-        subprocess.run("git init -q && printf '__pycache__/\\n*.pyc\\n.pytest_cache/\\n' >> .git/info/exclude && git add -A && git -c user.email=agent@demo -c user.name=agent commit -qm base && git tag base",
+        subprocess.run("git init -q && mkdir -p .git/info && printf '__pycache__/\\n*.pyc\\n.pytest_cache/\\n' >> .git/info/exclude && git add -A && git -c user.email=agent@demo -c user.name=agent commit -qm base && git tag base",
                        shell=True, cwd=dest, check=False)
         sess.repo_dir = str(dest.resolve())
         self.sessions[sess.id] = sess
