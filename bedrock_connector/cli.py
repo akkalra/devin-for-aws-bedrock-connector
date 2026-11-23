@@ -52,7 +52,12 @@ def main(argv=None):
     if args.cmd == "check":
         model = router.for_role("fast")
         print(f"mode={settings.resolved_mode} auth={settings.auth_method} region={settings.region} model={model}")
-        res = client.converse(model, [{"role": "user", "content": [{"text": "Reply with exactly: Bedrock OK"}]}], max_tokens=20)
+        try:
+            res = client.converse(model, [{"role": "user", "content": [{"text": "Reply with exactly: Bedrock OK"}]}],
+                                  max_tokens=20)
+        except Exception as e:  # botocore ClientError, NoCredentialsError, ...
+            print(f"Bedrock call failed: {type(e).__name__}: {e}", file=sys.stderr)
+            return 1
         ledger.record_call(session_id="check", role="fast", source="cli", result=res)
         print(json.dumps({"reply": res.text, "request_id": res.request_id, "latency_ms": res.latency_ms,
                           "tokens": [res.input_tokens, res.output_tokens]}))
