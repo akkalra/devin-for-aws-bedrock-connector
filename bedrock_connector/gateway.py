@@ -99,7 +99,7 @@ def create_app(settings: Settings | None = None, client=None) -> FastAPI:
         task = body.get("task") or "Fix the failing tests."
         repo = Path(body.get("repo") or SAMPLE_REPO).resolve()
         allowed = Path(os.environ.get("AGENT_REPO_ROOT", SAMPLE_REPO.parent)).resolve()
-        if repo != allowed and allowed not in repo.parents:
+        if body.get("repo") and repo != allowed and allowed not in repo.parents:
             raise HTTPException(403, f"repo must be under AGENT_REPO_ROOT ({allowed})")
         if not repo.is_dir():
             raise HTTPException(400, f"repo not found: {repo}")
