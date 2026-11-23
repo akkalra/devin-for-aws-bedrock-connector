@@ -21,6 +21,8 @@ SAMPLE_REPO = Path(__file__).resolve().parent.parent / "examples" / "sample_repo
 
 def handle(payload: dict, workload_token: str | None = None, settings: Settings | None = None) -> dict:
     settings = settings or Settings()
+    if payload.get("guardrail"):  # the gateway's Guardrail applies to remote sessions too
+        settings.guardrail_id, settings.guardrail_version = payload["guardrail"]["id"], payload["guardrail"]["version"]
     stack = build_stack(settings)
     org = Org(**{k: v for k, v in payload["org"].items() if k in Org.__dataclass_fields__})
     agent = Agent(stack.inference, org)

@@ -42,7 +42,8 @@ def create_app(settings: Settings | None = None, client=None, vault=None) -> Fas
     stack = build_stack(settings, base_client=client, vault=vault)
     tenants, ledger, inference, router = stack.tenants, stack.ledger, stack.inference, stack.router
     agent = Agent(inference, tenants.default_org)
-    dispatcher = (AgentCoreDispatcher(settings.agentcore_runtime_arn, settings.region, ledger)
+    guardrail = {"id": settings.guardrail_id, "version": settings.guardrail_version} if settings.guardrail_id else None
+    dispatcher = (AgentCoreDispatcher(settings.agentcore_runtime_arn, settings.region, ledger, guardrail=guardrail)
                   if settings.agentcore_runtime_arn else LocalDispatcher(agent))
     app = FastAPI(title="Devin for AWS — Bedrock connector", version=__version__)
     app.state.settings, app.state.ledger, app.state.agent, app.state.stack = settings, ledger, agent, stack

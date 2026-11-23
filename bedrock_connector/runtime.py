@@ -23,11 +23,14 @@ def org_payload(org) -> dict:
 
 
 class AgentCoreDispatcher:
-    def __init__(self, runtime_arn: str, region: str, ledger, client=None):
+    def __init__(self, runtime_arn: str, region: str, ledger, client=None, guardrail: dict | None = None):
         import boto3
+        from botocore.config import Config
 
-        self.arn, self.ledger = runtime_arn, ledger
-        self.client = client or boto3.client("bedrock-agentcore", region_name=region)
+        self.arn, self.ledger, self.guardrail = runtime_arn, ledger, guardrail
+        # The runtime answers only after plan, edits, tests and review finish.
+        self.client = client or boto3.client("bedrock-agentcore", region_name=region, config=Config(
+            read_timeout=900, retries={"total_max_attempts": 1}))
 
     def request(self, sess: AgentSession) -> dict:
         return {"agentRuntimeArn": self.arn,
@@ -35,7 +38,7 @@ class AgentCoreDispatcher:
                 "runtimeUserId": sess.user_id or "anonymous",
                 "contentType": "application/json", "accept": "application/json",
                 "payload": json.dumps({"task": sess.task, "session_id": sess.id, "user_id": sess.user_id,
-                                       "org": org_payload(sess.org)}).encode()}
+                                       "org": org_payload(sess.org), "guardrail": self.guardrail}).encode()}
 
     def run(self, sess: AgentSession) -> None:
         sess.status, sess.runtime = "running", "agentcore"
