@@ -12,6 +12,7 @@ Devin owns model routing either way; the credential only decides which account i
 """
 from __future__ import annotations
 
+import hashlib
 import re
 import secrets
 import threading
@@ -30,9 +31,13 @@ class Org:
     credential_source: str = "customer_api_key"
     key_last4: str = ""  # display hint only; the key lives in the credential vault
     role_arn: str = ""
-    external_id: str = field(default_factory=lambda: "devin-" + secrets.token_hex(8))
+    external_id: str = ""  # stable per org, so customer role trust policies survive restarts
     devin_managed_routing: bool = True
     routing_overrides: dict[str, list[str]] = field(default_factory=dict)
+
+    def __post_init__(self):
+        if not self.external_id:
+            self.external_id = "devin-" + hashlib.sha256(f"devin-external-id:{self.id}".encode()).hexdigest()[:16]
 
     @property
     def provider_name(self) -> str:
