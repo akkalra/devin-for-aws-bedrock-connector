@@ -32,9 +32,9 @@ class Principal:
     org: Org
 
     @property
-    def scope(self) -> str | None:
-        """Org filter for stats: signed-in users see only their org."""
-        return self.org.id if self.user else None
+    def scope(self) -> str:
+        """Org filter: callers see only their own org (anonymous callers get the demo org)."""
+        return self.org.id
 
 
 def create_app(settings: Settings | None = None, client=None, vault=None) -> FastAPI:
@@ -175,10 +175,10 @@ def create_app(settings: Settings | None = None, client=None, vault=None) -> Fas
 
     @app.get("/v1/stats")
     def stats(p: Principal = Depends(principal)):
-        sessions = [s for s in agent.sessions.values() if p.scope is None or s.org_id == p.scope]
+        sessions = [s for s in agent.sessions.values() if s.org_id == p.scope]
         return {"summary": ledger.summary(org_id=p.scope), "recent": ledger.recent(40, org_id=p.scope),
                 "health": healthz(), "me": me(p),
-                "sessions": [s.to_dict() | {"usage": ledger.summary(s.id)}
+                "sessions": [s.to_dict() | {"usage": ledger.summary(s.id, org_id=p.scope)}
                              for s in sorted(sessions, key=lambda s: s.started_at or 1e18, reverse=True)]}
 
     @app.post("/v1/agent/sessions")
@@ -198,9 +198,9 @@ def create_app(settings: Settings | None = None, client=None, vault=None) -> Fas
 
     @app.get("/v1/agent/sessions/{sid}")
     def get_session(sid: str, p: Principal = Depends(principal)):
-        if sid not in agent.sessions or (p.scope and agent.sessions[sid].org_id != p.scope):
+        if sid not in agent.sessions or agent.sessions[sid].org_id != p.scope:
             raise HTTPException(404)
-        return agent.sessions[sid].to_dict() | {"usage": ledger.summary(sid)}
+        return agent.sessions[sid].to_dict() | {"usage": ledger.summary(sid, org_id=p.scope)}
 
     @app.get("/")
     def dashboard():
