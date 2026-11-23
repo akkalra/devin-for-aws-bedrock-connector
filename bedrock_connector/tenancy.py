@@ -19,6 +19,7 @@ import threading
 from dataclasses import asdict, dataclass, field
 
 CREDENTIAL_SOURCES = ("customer_api_key", "customer_iam_role", "devin_managed")
+MODEL_ID_RE = re.compile(r"^[A-Za-z0-9][\w.:/-]{0,255}$")
 ROLE_ARN_RE = re.compile(r"^arn:aws[a-z-]*:iam::\d{12}:role/[\w+=,.@/-]{1,512}$")
 
 
@@ -106,7 +107,8 @@ class TenantStore:
             raise ValueError("role_arn must look like arn:aws:iam::123456789012:role/Name")
         overrides = body.get("routing_overrides", org.routing_overrides)
         if not isinstance(overrides, dict) or not all(
-                isinstance(v, list) and all(isinstance(m, str) for m in v) for v in overrides.values()):
+                isinstance(k, str) and re.fullmatch(r"[a-z]{1,32}", k) and isinstance(v, list)
+                and all(isinstance(m, str) and MODEL_ID_RE.match(m) for m in v) for k, v in overrides.items()):
             raise ValueError("routing_overrides must map role -> list of Bedrock model ids")
         region = body.get("region", org.region).strip()
         if not re.fullmatch(r"[a-z]{2}(-gov)?-[a-z]+-\d", region):

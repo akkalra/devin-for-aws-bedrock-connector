@@ -148,7 +148,7 @@ const authHeaders = () => {
 };
 const api = (path, method = "GET", body) => fetch(path, {method, headers: {"content-type": "application/json", ...authHeaders()}, body: body && JSON.stringify(body)});
 const usd = (x) => "$" + (x < 1 ? x.toFixed(4) : x.toFixed(2));
-const esc = (s) => String(s ?? "").replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let current = null;
 
 function pools(vp) {
@@ -210,7 +210,7 @@ function renderMe(m) {
 function renderRouting(routing) {
   if (!$("managed").checked) {  // pinned: admins edit each task's model chain (primary first)
     $("routing").innerHTML = "<tr><th>Task</th><th>Pinned Bedrock models (primary, then fallbacks)</th></tr>" + Object.entries(routing).map(([r, ms]) =>
-      `<tr><td>${r}</td><td><input class="pin" data-role="${r}" value="${esc(ms.join(", "))}"></td></tr>`).join("");
+      `<tr><td>${esc(r)}</td><td><input class="pin" data-role="${esc(r)}" value="${esc(ms.join(", "))}"></td></tr>`).join("");
     document.querySelectorAll(".pin").forEach(el => el.addEventListener("input", () => orgDirty = true));
     return;
   }
