@@ -70,6 +70,8 @@ class BedrockClient:
             self._client = boto3.Session(botocore_session=bs).client(
                 "bedrock-runtime", region_name=region, config=cfg.merge(Config(signature_version="bearer")))
         else:
+            if boto_session is not None:  # assumed-role creds: never fall back to a process-wide bearer key
+                cfg = cfg.merge(Config(signature_version="v4"))
             self._client = (boto_session or boto3).client("bedrock-runtime", region_name=region, config=cfg)
 
     def converse(self, model_id: str, messages: list[dict], system: list[dict] | None = None,
