@@ -204,7 +204,17 @@ function renderMe(m) {
     document.querySelectorAll(".src").forEach(el => { const on = el.dataset.src === o.credential_source; el.classList.toggle("on", on); el.querySelector("input").checked = on; });
     $("rolearn").value = o.role_arn; $("orgregion").value = o.region; $("managed").checked = o.devin_managed_routing;
   }
-  $("routing").innerHTML = "<tr><th>Task</th><th>Primary</th><th>Fallbacks</th></tr>" + Object.entries(m.routing).map(([r, ms]) =>
+  if (!orgDirty) renderRouting(m.routing);
+}
+
+function renderRouting(routing) {
+  if (!$("managed").checked) {  // pinned: admins edit each task's model chain (primary first)
+    $("routing").innerHTML = "<tr><th>Task</th><th>Pinned Bedrock models (primary, then fallbacks)</th></tr>" + Object.entries(routing).map(([r, ms]) =>
+      `<tr><td>${r}</td><td><input class="pin" data-role="${r}" value="${esc(ms.join(", "))}"></td></tr>`).join("");
+    document.querySelectorAll(".pin").forEach(el => el.addEventListener("input", () => orgDirty = true));
+    return;
+  }
+  $("routing").innerHTML = "<tr><th>Task</th><th>Primary</th><th>Fallbacks</th></tr>" + Object.entries(routing).map(([r, ms]) =>
     `<tr><td>${r}</td><td><b>${esc(short(ms[0]))}</b></td><td class="muted">${ms.slice(1).map(x => esc(short(x))).join(" → ") || "—"}</td></tr>`).join("");
 }
 
@@ -249,9 +259,13 @@ document.querySelectorAll(".src").forEach(el => el.onclick = () => {
   orgDirty = true; document.querySelectorAll(".src").forEach(x => { x.classList.toggle("on", x === el); x.querySelector("input").checked = x === el; });
 });
 ["rolearn", "orgregion", "managed"].forEach(id => $(id).addEventListener("input", () => orgDirty = true));
+$("managed").addEventListener("change", () => { orgDirty = true; if (me) renderRouting(me.routing); });
 $("saveorg").onclick = async () => {
   const src = document.querySelector(".src input:checked")?.value;
-  const r = await api("/v1/org/settings", "PUT", {credential_source: src, role_arn: $("rolearn").value, region: $("orgregion").value, devin_managed_routing: $("managed").checked});
+  const body = {credential_source: src, role_arn: $("rolearn").value, region: $("orgregion").value, devin_managed_routing: $("managed").checked};
+  if (!body.devin_managed_routing)
+    body.routing_overrides = Object.fromEntries([...document.querySelectorAll(".pin")].map(el => [el.dataset.role, el.value.split(",").map(x => x.trim()).filter(Boolean)]));
+  const r = await api("/v1/org/settings", "PUT", body);
   const d = await r.json();
   $("conn").innerHTML = r.ok ? '<span class="ok">Settings saved.</span>' : `<span class="err">${esc(d.detail)}</span>`;
   if (r.ok) { orgDirty = false; renderMe(d); }
