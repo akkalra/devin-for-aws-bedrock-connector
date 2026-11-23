@@ -99,7 +99,7 @@
 </main>
 <script>
 const $ = (id) => document.getElementById(id);
-const qsKey = new URLSearchParams(location.search).get("key");
+const qsKey = new URLSearchParams(location.hash.slice(1)).get("key");  // #key=... never reaches server logs
 if (qsKey) { sessionStorage.setItem("gatewayKey", qsKey); history.replaceState(null, "", location.pathname); }
 const authHeaders = () => { const k = sessionStorage.getItem("gatewayKey"); return k ? {"x-api-key": k} : {}; };
 const usd = (x) => "$" + (x < 1 ? x.toFixed(4) : x.toFixed(2));
