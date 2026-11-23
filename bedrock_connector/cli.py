@@ -23,6 +23,8 @@ def main(argv=None):
     sp = sub.add_parser("serve")
     sp.add_argument("--host", default="127.0.0.1")
     sp.add_argument("--port", type=int, default=8080)
+    sp.add_argument("--allow-anonymous", action="store_true",
+                    help="serve live Bedrock on a non-loopback host without GATEWAY_API_KEY")
     ap = sub.add_parser("agent")
     ap.add_argument("task")
     ap.add_argument("--repo", default=None)
@@ -34,6 +36,10 @@ def main(argv=None):
         import uvicorn
 
         from .gateway import create_app
+        public = args.host not in ("127.0.0.1", "localhost", "::1")
+        if public and settings.resolved_mode == "live" and not settings.gateway_api_key and not args.allow_anonymous:
+            print("refusing to expose live Bedrock without GATEWAY_API_KEY (or pass --allow-anonymous)", file=sys.stderr)
+            return 2
         print(f"mode={settings.resolved_mode} auth={settings.auth_method} region={settings.region}")
         uvicorn.run(create_app(settings), host=args.host, port=args.port)
         return 0
