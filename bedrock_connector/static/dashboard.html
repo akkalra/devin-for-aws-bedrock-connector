@@ -259,7 +259,7 @@ document.querySelectorAll(".src").forEach(el => el.onclick = () => {
   orgDirty = true; document.querySelectorAll(".src").forEach(x => { x.classList.toggle("on", x === el); x.querySelector("input").checked = x === el; });
 });
 ["rolearn", "orgregion", "managed"].forEach(id => $(id).addEventListener("input", () => orgDirty = true));
-$("managed").addEventListener("change", () => { orgDirty = true; if (me) renderRouting(me.routing); });
+$("managed").addEventListener("change", () => { orgDirty = true; if (me) renderRouting({...me.routing, ...me.org.routing_overrides}); });
 $("saveorg").onclick = async () => {
   const src = document.querySelector(".src input:checked")?.value;
   const body = {credential_source: src, role_arn: $("rolearn").value, region: $("orgregion").value, devin_managed_routing: $("managed").checked};
