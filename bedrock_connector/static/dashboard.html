@@ -99,6 +99,9 @@
 </main>
 <script>
 const $ = (id) => document.getElementById(id);
+const qsKey = new URLSearchParams(location.search).get("key");
+if (qsKey) { sessionStorage.setItem("gatewayKey", qsKey); history.replaceState(null, "", location.pathname); }
+const authHeaders = () => { const k = sessionStorage.getItem("gatewayKey"); return k ? {"x-api-key": k} : {}; };
 const usd = (x) => "$" + (x < 1 ? x.toFixed(4) : x.toFixed(2));
 const esc = (s) => String(s ?? "").replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 let current = null;
@@ -135,7 +138,7 @@ function renderSession(s) {
 }
 
 async function refresh() {
-  const r = await fetch("/v1/stats"); if (!r.ok) return;
+  const r = await fetch("/v1/stats", {headers: authHeaders()}); if (!r.ok) return;
   const d = await r.json(), h = d.health, s = d.summary;
   $("mode").textContent = h.mode === "live" ? "LIVE Bedrock" : "MOCK mode"; $("mode").className = "pill " + h.mode;
   $("auth").textContent = "auth: " + h.auth; $("region").textContent = h.region;
@@ -160,7 +163,7 @@ async function refresh() {
 
 $("run").onclick = async () => {
   $("run").disabled = true; $("diffwrap").style.display = "none"; $("sumwrap").style.display = "none";
-  const r = await fetch("/v1/agent/sessions", {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({task: $("task").value})});
+  const r = await fetch("/v1/agent/sessions", {method: "POST", headers: {"content-type": "application/json", ...authHeaders()}, body: JSON.stringify({task: $("task").value})});
   const s = await r.json(); current = s.id; refresh();
 };
 refresh(); setInterval(refresh, 1500);
