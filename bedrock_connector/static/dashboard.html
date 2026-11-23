@@ -131,7 +131,7 @@ function renderSession(s) {
   }).join("");
   $("steps").scrollTop = $("steps").scrollHeight;
   if (s.diff) { $("diffwrap").style.display = ""; $("diff").innerHTML = s.diff.split("\n").map(l => l.startsWith("+") && !l.startsWith("+++") ? `<span class="add">${esc(l)}</span>` : l.startsWith("-") && !l.startsWith("---") ? `<span class="del">${esc(l)}</span>` : esc(l)).join("\n"); }
-  if (s.status === "finished" && s.summary) { $("sumwrap").style.display = ""; $("summary").textContent = s.summary; }
+  if ((s.status === "finished" || s.status === "unverified") && s.summary) { $("sumwrap").style.display = ""; $("summary").textContent = s.summary; }
   $("pools").innerHTML = pools(s.usage.value_pools);
   $("run").disabled = s.status === "running";
   $("run-status").textContent = s.status === "running" ? "running on Bedrock…" : s.status;

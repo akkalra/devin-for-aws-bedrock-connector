@@ -39,10 +39,10 @@ def test_agent_session_runs_through_bedrock():
     sid = c.post("/v1/agent/sessions", json={"task": "fix tests"}).json()["id"]
     for _ in range(100):
         s = c.get(f"/v1/agent/sessions/{sid}").json()
-        if s["status"] in ("finished", "error"):
+        if s["status"] in ("finished", "unverified", "error"):
             break
         time.sleep(0.05)
-    assert s["status"] == "finished", s["steps"]
+    assert s["status"] == "unverified", s["steps"]  # mock client does not fix the bugs
     roles = [st["role"] for st in s["steps"] if st["type"] == "model"]
     assert roles[0] == "planner" and roles[-1] == "reviewer" and "coder" in roles
     assert {st["name"] for st in s["steps"] if st["type"] == "tool"} >= {"list_files", "run_command", "finish"}

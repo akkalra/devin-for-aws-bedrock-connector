@@ -88,8 +88,8 @@ class Agent:
         try:
             self._plan(sess)
             self._execute(sess)
-            self._review(sess)
-            sess.status = "finished"
+            passed = self._review(sess)
+            sess.status = "finished" if passed else "unverified"
         except Exception as e:  # surfaced in the dashboard
             sess.status = "error"
             sess.steps.append({"type": "error", "text": f"{type(e).__name__}: {e}"})
@@ -134,7 +134,7 @@ class Agent:
             messages.append({"role": "user", "content": results})
         sess.summary = "Stopped: step limit reached."
 
-    def _review(self, sess: AgentSession) -> None:
+    def _review(self, sess: AgentSession) -> bool:
         sess.diff = subprocess.run("git add -A && git diff --cached base", shell=True, cwd=sess.repo_dir, capture_output=True, text=True).stdout
         tests = self._run_tool(sess, "run_command", {"command": "python -m pytest -q"}, log=False)
         prompt = (f"Task: {sess.task}\n\nDiff:\n{sess.diff[:8000] or '(no changes)'}\n\nTest output:\n{tests[-2000:]}\n\n"
@@ -142,6 +142,7 @@ class Agent:
         res = self._call(sess, "reviewer", [{"role": "user", "content": [{"text": prompt}]}],
                          system="You review code changes and write crisp PR descriptions.")
         sess.summary = res.text or sess.summary
+        return tests.startswith("exit=0")
 
     # ---------------------------------------------------------------- tools
 
