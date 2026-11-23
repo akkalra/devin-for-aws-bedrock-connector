@@ -13,6 +13,8 @@ goes through `InferenceService.converse`:
 """
 from __future__ import annotations
 
+import copy
+import dataclasses
 import hashlib
 import threading
 import time
@@ -57,8 +59,12 @@ class ClientFactory:
             raise MissingCredential("no IAM role ARN on file; add one in org settings")
         if org.credential_source == "customer_api_key":
             key = self.vault.get_api_key(org.provider_name, ctx.user_id, ctx.workload_token)
-        if self.mock or org.credential_source == "devin_managed":
+        if self.mock:
             return self.base
+        if org.credential_source == "devin_managed":
+            if org.region == self.settings.region:
+                return self.base
+            return self._cached(("managed", org.region), lambda: (BedrockClient(self.settings, org.region), 1e18))
         if org.credential_source == "customer_api_key":
             cache_key = ("key", org.id, org.region, hashlib.sha256(key.encode()).hexdigest())
             return self._cached(cache_key, lambda: (BedrockClient(self.settings, org.region, api_key=key), 1e18))
@@ -92,6 +98,7 @@ class InferenceService:
     def converse(self, ctx: CallContext, role: str, messages: list[dict], system=None, tools=None,
                  max_tokens: int = 4096, temperature: float | None = None,
                  requested: str | None = None) -> tuple[ConverseResult, CallRecord]:
+        ctx = dataclasses.replace(ctx, org=copy.deepcopy(ctx.org))  # admins may edit settings mid-call
         if requested is not None:
             role, model = self.router.resolve(requested)
             candidates = [model] if role == "passthrough" else self.router.candidates(role, ctx.org)
