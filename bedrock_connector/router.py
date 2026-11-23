@@ -21,9 +21,10 @@ def is_bedrock_model_id(name: str) -> bool:
 
 
 def geo_profile(model_id: str, region: str) -> str:
-    """Point a `us.` cross-region inference profile at the org region's geography."""
+    """Point a geographic cross-region inference profile (us./eu./apac.) at the org region's geography."""
     geo = {"eu": "eu", "ap": "apac"}.get(region.split("-", 1)[0], "us")
-    return f"{geo}.{model_id[3:]}" if model_id.startswith("us.") else model_id
+    head, _, rest = model_id.partition(".")
+    return f"{geo}.{rest}" if head in ("us", "eu", "apac") and rest else model_id
 
 
 class ModelRouter:
@@ -40,8 +41,9 @@ class ModelRouter:
         gets exactly its pinned list.
         """
         if org is not None and not org.devin_managed_routing and org.routing_overrides.get(role):
-            return list(org.routing_overrides[role])
-        chain = [self.for_role(role)] + self.settings.fallbacks.get(role, [])
+            chain = list(org.routing_overrides[role])
+        else:
+            chain = [self.for_role(role)] + self.settings.fallbacks.get(role, [])
         if org is not None:
             chain = [geo_profile(m, org.region) for m in chain]
         return list(dict.fromkeys(chain))
