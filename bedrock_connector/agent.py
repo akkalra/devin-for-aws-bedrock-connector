@@ -70,7 +70,8 @@ class Agent:
     def create_session(self, task: str, source_repo: str, workdir: str = "runs") -> AgentSession:
         sess = AgentSession(task=task, repo_dir="")
         dest = Path(workdir) / sess.id
-        shutil.copytree(source_repo, dest, ignore=shutil.ignore_patterns("__pycache__", ".pytest_cache"))
+        skip = shutil.ignore_patterns("__pycache__", ".pytest_cache", ".git", "runs", Path(workdir).name)
+        shutil.copytree(source_repo, dest, symlinks=True, ignore=skip)
         subprocess.run("git init -q && git add -A && git -c user.email=agent@demo -c user.name=agent commit -qm base",
                        shell=True, cwd=dest, check=False)
         sess.repo_dir = str(dest.resolve())
