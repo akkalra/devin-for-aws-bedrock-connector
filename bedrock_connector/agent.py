@@ -70,10 +70,11 @@ class Agent:
     def create_session(self, task: str, source_repo: str, workdir: str = "runs") -> AgentSession:
         sess = AgentSession(task=task, repo_dir="")
         dest = Path(workdir) / sess.id
-        workroot = Path(workdir).resolve()
+        workroot = os.path.realpath(workdir)
 
         def skip(d, names):
-            return {n for n in names if n in ("__pycache__", ".pytest_cache", ".git") or Path(d, n).resolve() == workroot}
+            return {n for n in names
+                    if n in ("__pycache__", ".pytest_cache", ".git") or os.path.realpath(os.path.join(d, n)) == workroot}
         shutil.copytree(source_repo, dest, symlinks=True, ignore=skip)
         subprocess.run("git init -q && printf '__pycache__/\\n*.pyc\\n.pytest_cache/\\n' >> .git/info/exclude && git add -A && git -c user.email=agent@demo -c user.name=agent commit -qm base && git tag base",
                        shell=True, cwd=dest, check=False)
