@@ -1,7 +1,10 @@
 # Devin for AWS — Amazon Bedrock connector (demo)
 
-A working demo of the **"Devin for AWS"** inference path: a Devin-style autonomous coding
-agent where **every model call goes to Amazon Bedrock**, using a Bedrock API key or IAM.
+A working demo of the **"Devin for AWS"** backend: a Devin-style autonomous coding agent
+where **every model call goes to Amazon Bedrock**. When you sign in to Devin, your org
+defaults to **your own Bedrock API key** (held in **AgentCore Identity**) or a cross-account
+IAM role, while **Devin manages model routing** (which model per task, plus fallbacks) in
+the backend. Agent sessions can run on **AgentCore Runtime**.
 Each call is metered into **ACUs**, and the dashboard splits ACU revenue into AWS revenue
 share, Cognition's AWS infra bill (Bedrock + runtime + other AWS), and total AWS capture.
 
@@ -12,6 +15,14 @@ See [docs/architecture.md](docs/architecture.md) for the diagram.
 
 ## What it shows
 
+0. **Devin + Bedrock + AgentCore backend.** Sign in (simulated IAM Identity Center SSO) →
+   org settings default to *your Amazon Bedrock API key*, stored as an AgentCore Identity
+   API-key credential provider (`devin-<org>-bedrock`) and fetched at run time with a workload
+   access token for the signed-in user. Alternatives: a cross-account IAM role
+   (`deploy/customer-bedrock-role.yaml`, `sts:AssumeRole` + ExternalId) or Devin-managed
+   Bedrock. Devin's router picks the model per task and falls back on throttling, capacity
+   or model-access errors. Sessions run in-process for the demo or on AgentCore Runtime
+   (`Dockerfile.agentcore`, `deploy/agentcore/deploy.py`, `AGENTCORE_RUNTIME_ARN`).
 1. **Bedrock as the only inference backend.** `bedrock-runtime:Converse` for planning,
    coding (tool use) and review, with role-based model routing (Sonnet for plan/code, Haiku
    for review/fast). Any other model name a client asks for is still served by Bedrock.
@@ -61,6 +72,11 @@ model id / inference profile (e.g. `amazon.nova-pro-v1:0`). Responses include
 
 | Endpoint | Purpose |
 |---|---|
+| `POST /v1/auth/login` | Simulated SSO `{email}` → session token (`x-devin-session` header) |
+| `GET /v1/me` | Signed-in user, org credential settings, effective routing |
+| `PUT /v1/org/bedrock-key` | Store the org's Bedrock API key in the vault (never returned) |
+| `PUT /v1/org/settings` | Credential source, IAM role ARN, region, Devin-managed routing or pinned models |
+| `POST /v1/org/test-connection` | One Bedrock call with the org's credentials |
 | `POST /v1/chat/completions` | OpenAI-compatible, served by Bedrock Converse |
 | `POST /v1/messages` | Anthropic-compatible, served by Bedrock Converse |
 | `POST /v1/agent/sessions` | Start an agent session `{task, repo?}` |
@@ -73,7 +89,21 @@ model id / inference profile (e.g. `amazon.nova-pro-v1:0`). Responses include
 
 See [.env.example](.env.example). Main settings: `AWS_REGION`, `BEDROCK_MODE`,
 `BEDROCK_MODEL_{PLANNER,CODER,REVIEWER,FAST}`, `BEDROCK_GUARDRAIL_ID`, `GATEWAY_API_KEY`,
-`LEDGER_PATH`, and the economics parameters.
+`LEDGER_PATH`, `CREDENTIAL_VAULT` (`local` | `agentcore`), `AGENTCORE_WORKLOAD_NAME`,
+`AGENTCORE_RUNTIME_ARN`, `BEDROCK_FALLBACKS_JSON`, `MOCK_UNAVAILABLE_MODELS` (demo a fallback
+offline), and the economics parameters.
+
+### Run against real AgentCore
+
+```bash
+# 1. Agent container on AgentCore Runtime (arm64)
+docker buildx build --platform linux/arm64 -f Dockerfile.agentcore -t $ECR/devin-agent:latest --push .
+python deploy/agentcore/deploy.py --image $ECR/devin-agent:latest \
+    --role-arn arn:aws:iam::$ACCT:role/DevinAgentCoreRuntime   # policy: deploy/agentcore/runtime-role-policy.json
+# 2. Devin backend: keys in AgentCore Identity, sessions on AgentCore Runtime
+CREDENTIAL_VAULT=agentcore AGENTCORE_RUNTIME_ARN=<arn from step 1> GATEWAY_API_KEY=... \
+    bedrock-connector serve --host 0.0.0.0
+```
 
 ## Docs
 

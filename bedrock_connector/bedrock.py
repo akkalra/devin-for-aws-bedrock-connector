@@ -29,6 +29,20 @@ class ConverseResult:
         return [b["toolUse"] for b in self.message.get("content", []) if "toolUse" in b]
 
 
+class _StaticToken:
+    """botocore token provider that serves one Bedrock API key to one client,
+    so tenants never share a process-wide AWS_BEARER_TOKEN_BEDROCK."""
+    METHOD = "static"
+
+    def __init__(self, token: str):
+        self._token = token
+
+    def load_token(self, **kwargs):
+        from botocore.tokens import FrozenAuthToken
+
+        return FrozenAuthToken(self._token)
+
+
 class BedrockClient:
     """Thin wrapper over `bedrock-runtime.converse`.
 
@@ -37,16 +51,26 @@ class BedrockClient:
     credentials (instance role, IAM Identity Center/SSO, env keys) are used.
     """
 
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, region: str | None = None, api_key: str | None = None,
+                 boto_session=None):
+        """`api_key` (a customer's Bedrock API key) or `boto_session` (assumed-role
+        credentials) scope this client to one tenant; otherwise the process's own
+        AWS credentials are used."""
         import boto3
         from botocore.config import Config
 
         self.settings = settings
-        self._client = boto3.client(
-            "bedrock-runtime",
-            region_name=settings.region,
-            config=Config(retries={"max_attempts": 6, "mode": "adaptive"}, read_timeout=300),
-        )
+        cfg = Config(retries={"max_attempts": 6, "mode": "adaptive"}, read_timeout=300)
+        region = region or settings.region
+        if api_key:
+            import botocore.session
+
+            bs = botocore.session.Session()
+            bs.register_component("token_provider", _StaticToken(api_key))
+            self._client = boto3.Session(botocore_session=bs).client(
+                "bedrock-runtime", region_name=region, config=cfg.merge(Config(signature_version="bearer")))
+        else:
+            self._client = (boto_session or boto3).client("bedrock-runtime", region_name=region, config=cfg)
 
     def converse(self, model_id: str, messages: list[dict], system: list[dict] | None = None,
                  tools: list[dict] | None = None, max_tokens: int = 4096,
@@ -98,6 +122,11 @@ class MockBedrockClient:
     def converse(self, model_id: str, messages: list[dict], system: list[dict] | None = None,
                  tools: list[dict] | None = None, max_tokens: int = 4096,
                  temperature: float | None = None) -> ConverseResult:
+        if model_id in self.settings.mock_unavailable_models:
+            from botocore.exceptions import ClientError
+
+            raise ClientError({"Error": {"Code": "ThrottlingException",
+                                         "Message": f"[mock] {model_id} is out of capacity"}}, "Converse")
         tool_names = {t["toolSpec"]["name"] for t in (tools or [])}
         n_results = sum(1 for m in messages for b in m["content"] if "toolResult" in b)
         script = [n for n in ("list_files", "run_command", "finish") if n in tool_names]

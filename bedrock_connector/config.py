@@ -32,6 +32,17 @@ DEFAULT_ROLE_MODELS = {
 }
 
 
+# Devin-managed fallbacks per role, tried in order when the primary model is
+# throttled, out of capacity, or not enabled in the account. `global.` profiles
+# use cross-region inference capacity; Nova keeps the call on a different model family.
+DEFAULT_FALLBACKS = {
+    "planner": ["global.anthropic.claude-sonnet-4-5-20250929-v1:0", "us.amazon.nova-pro-v1:0"],
+    "coder": ["global.anthropic.claude-sonnet-4-5-20250929-v1:0", "us.amazon.nova-pro-v1:0"],
+    "reviewer": ["global.anthropic.claude-haiku-4-5-20251001-v1:0", "us.amazon.nova-lite-v1:0"],
+    "fast": ["global.anthropic.claude-haiku-4-5-20251001-v1:0", "us.amazon.nova-micro-v1:0"],
+}
+
+
 def _f(name: str, default: float) -> float:
     return float(os.environ.get(name, default))
 
@@ -48,6 +59,16 @@ class Settings:
     guardrail_version: str = field(default_factory=lambda: os.environ.get("BEDROCK_GUARDRAIL_VERSION", "DRAFT"))
     gateway_api_key: str | None = field(default_factory=lambda: os.environ.get("GATEWAY_API_KEY"))
     ledger_path: str | None = field(default_factory=lambda: os.environ.get("LEDGER_PATH"))
+    fallbacks: dict[str, list[str]] = field(default_factory=lambda: dict(DEFAULT_FALLBACKS))
+    # Where customer Bedrock API keys are held: "local" (in-process, demo) or
+    # "agentcore" (Amazon Bedrock AgentCore Identity token vault).
+    credential_vault: str = field(default_factory=lambda: os.environ.get("CREDENTIAL_VAULT", "local"))
+    agentcore_workload_name: str = field(default_factory=lambda: os.environ.get("AGENTCORE_WORKLOAD_NAME", "devin-agent"))
+    # If set, agent sessions run on this AgentCore Runtime instead of a local thread.
+    agentcore_runtime_arn: str | None = field(default_factory=lambda: os.environ.get("AGENTCORE_RUNTIME_ARN"))
+    # Mock only: comma-separated model ids that answer with ThrottlingException (to demo fallbacks).
+    mock_unavailable_models: set[str] = field(default_factory=lambda: {
+        m.strip() for m in os.environ.get("MOCK_UNAVAILABLE_MODELS", "").split(",") if m.strip()})
 
     # ACU economics (illustrative; see docs/economics.md).
     acu_price_usd: float = field(default_factory=lambda: _f("ACU_PRICE_USD", 2.25))
@@ -65,6 +86,8 @@ class Settings:
         if os.environ.get("BEDROCK_PRICING_JSON"):
             pricing.update({k: tuple(v) for k, v in json.loads(os.environ["BEDROCK_PRICING_JSON"]).items()})
         self.pricing = pricing | self.pricing
+        if os.environ.get("BEDROCK_FALLBACKS_JSON"):
+            self.fallbacks.update(json.loads(os.environ["BEDROCK_FALLBACKS_JSON"]))
 
     @property
     def auth_method(self) -> str:

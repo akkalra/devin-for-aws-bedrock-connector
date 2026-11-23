@@ -41,6 +41,18 @@
   .muted { color:var(--muted); }
   pre { white-space:pre-wrap; background:#0b121a; padding:10px; border-radius:8px; border:1px solid var(--line); font-size:12px; max-height:260px; overflow:auto; }
   .add { color:var(--ok); } .del { color:var(--err); }
+  button.ghost { background:transparent; color:var(--muted); border:1px solid var(--line); }
+  .right { margin-left:auto; display:flex; gap:8px; align-items:center; }
+  #login { position:fixed; inset:0; background:rgba(5,10,16,.85); display:none; align-items:center; justify-content:center; z-index:10; }
+  #login .card { width:420px; }
+  .src { display:flex; gap:10px; align-items:flex-start; padding:8px; border:1px solid var(--line); border-radius:8px; margin:6px 0; cursor:pointer; }
+  .src.on { border-color:var(--aws); background:#1d1a12; }
+  .src input { width:auto; margin-top:3px; }
+  .row { display:flex; gap:8px; align-items:center; margin-top:8px; }
+  .tag { font-size:11px; padding:1px 6px; border-radius:4px; border:1px solid var(--line); color:var(--muted); }
+  .tag.customer { color:var(--ok); border-color:var(--ok); } .tag.cognition { color:var(--blue); border-color:var(--blue); }
+  .fb { color:var(--aws); }
+  .ok { color:var(--ok); } .err { color:var(--err); }
 </style>
 </head>
 <body>
@@ -50,20 +62,49 @@
   <span id="auth" class="pill">…</span>
   <span id="region" class="pill">…</span>
   <span id="guard" class="pill">…</span>
+  <span id="rt" class="pill">…</span>
+  <div class="right"><span id="who" class="pill">not signed in</span><button id="logout" class="ghost">Sign out</button></div>
 </header>
+<div id="login"><div class="card">
+  <h2>Sign in to Devin</h2>
+  <div class="muted" style="margin-bottom:10px">IAM Identity Center SSO (simulated). Your email domain selects your Devin org.</div>
+  <input id="email" value="dev@acme.com" placeholder="you@company.com">
+  <div class="row"><button id="signin">Sign in</button><span class="muted" id="login-err"></span></div>
+  <div class="muted" style="font-size:12px;margin-top:10px">Demo orgs: <b>acme.com</b> (own Bedrock API key) · <b>globex.com</b> (cross-account IAM role)</div>
+</div></div>
 <main>
   <div class="card span12">
-    <h2>Request path: every inference call stays in AWS</h2>
+    <h2>Request path: Devin login → Devin routing → AgentCore → your Amazon Bedrock</h2>
     <div class="flow">
-      <div class="n">Enterprise customer<br><span class="muted">IAM Identity Center</span></div><div class="a">→</div>
-      <div class="n">Devin agent loop<br><span class="muted">plan · code · test · review</span></div><div class="a">→</div>
-      <div class="n aws">Bedrock connector<br><span class="muted">routing · metering · guardrails</span></div><div class="a">→</div>
+      <div class="n">Devin login<br><span class="muted" id="f-user">IAM Identity Center SSO</span></div><div class="a">→</div>
+      <div class="n">Devin backend<br><span class="muted">model routing · fallbacks · metering</span></div><div class="a">→</div>
+      <div class="n aws">AgentCore Identity<br><span class="muted" id="f-cred">org Bedrock credential</span></div><div class="a">→</div>
+      <div class="n aws">AgentCore Runtime<br><span class="muted" id="f-rt">agent sandbox</span></div><div class="a">→</div>
       <div class="n aws">Amazon Bedrock Converse<br><span class="muted" id="models">…</span></div><div class="a">→</div>
-      <div class="n aws">ACU ledger<br><span class="muted">AWS billing / Marketplace metering</span></div>
+      <div class="n aws">Billing<br><span class="muted" id="f-bill">tokens → AWS bill · ACUs → Marketplace</span></div>
     </div>
   </div>
 
-  <div class="card kpi"><div class="l">Bedrock calls</div><div class="v" id="k-calls">0</div></div>
+  <div class="card span5">
+    <h2>Inference credentials · <span id="org-name"></span></h2>
+    <label class="src" data-src="customer_api_key"><input type="radio" name="src" value="customer_api_key"><div><b>Your Amazon Bedrock API key</b> <span class="tag">default</span><br><span class="muted">Stored in <span id="vault">AgentCore Identity</span> as <code id="provider"></code>. Devin never returns it.</span>
+      <div class="row"><input id="apikey" type="password" placeholder="ABSK… (Bedrock API key)" autocomplete="off"><button id="savekey">Save</button></div>
+      <div class="muted" id="keyhint" style="font-size:12px;margin-top:4px"></div></div></label>
+    <label class="src" data-src="customer_iam_role"><input type="radio" name="src" value="customer_iam_role"><div><b>Cross-account IAM role</b><br><span class="muted">Devin calls sts:AssumeRole with External ID <code id="extid"></code> (deploy/customer-bedrock-role.yaml).</span>
+      <div class="row"><input id="rolearn" placeholder="arn:aws:iam::123456789012:role/DevinBedrockAccess"></div></div></label>
+    <label class="src" data-src="devin_managed"><input type="radio" name="src" value="devin_managed"><div><b>Devin-managed Bedrock</b><br><span class="muted">Cognition's AWS account; tokens are included in ACUs.</span></div></label>
+    <div class="row"><span class="muted">Region</span><input id="orgregion" style="width:130px"><button id="saveorg" class="ghost">Save settings</button><button id="testconn" class="ghost">Test connection</button></div>
+    <div id="conn" class="muted" style="font-size:12px;margin-top:6px"></div>
+  </div>
+
+  <div class="card span7">
+    <h2>Model routing (managed by Devin, served by Bedrock in <span id="route-region"></span>)</h2>
+    <label class="row" style="margin:0 0 8px"><input type="checkbox" id="managed" style="width:auto"> Let Devin choose models and fallbacks per task</label>
+    <table id="routing"></table>
+    <div class="muted" style="font-size:12px;margin-top:6px">Throttling, capacity and model-access errors fall through to the next model. Uncheck to pin your own model list per role.</div>
+  </div>
+
+  <div class="card kpi"><div class="l">Bedrock calls (fallbacks)</div><div class="v" id="k-calls">0</div></div>
   <div class="card kpi"><div class="l">Tokens in / out</div><div class="v" id="k-tokens">0</div></div>
   <div class="card kpi"><div class="l">Bedrock spend</div><div class="v" id="k-bedrock">$0</div></div>
   <div class="card kpi"><div class="l">ACUs metered</div><div class="v" id="k-acus">0</div></div>
@@ -101,7 +142,11 @@
 const $ = (id) => document.getElementById(id);
 const qsKey = new URLSearchParams(location.hash.slice(1)).get("key");  // #key=... never reaches server logs
 if (qsKey) { sessionStorage.setItem("gatewayKey", qsKey); history.replaceState(null, "", location.pathname); }
-const authHeaders = () => { const k = sessionStorage.getItem("gatewayKey"); return k ? {"x-api-key": k} : {}; };
+const authHeaders = () => {
+  const k = sessionStorage.getItem("gatewayKey"), t = sessionStorage.getItem("devinSession"), h = {};
+  if (k) h["x-api-key"] = k; if (t) h["x-devin-session"] = t; return h;
+};
+const api = (path, method = "GET", body) => fetch(path, {method, headers: {"content-type": "application/json", ...authHeaders()}, body: body && JSON.stringify(body)});
 const usd = (x) => "$" + (x < 1 ? x.toFixed(4) : x.toFixed(2));
 const esc = (s) => String(s ?? "").replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 let current = null;
@@ -114,7 +159,8 @@ function pools(vp) {
     ["  · Bedrock inference", vp.of_which_bedrock_usd, ""],
     ["  · Agent runtime (EC2)", vp.of_which_runtime_usd, ""],
     ["  · Other AWS services", vp.of_which_other_aws_usd, ""],
-    ["AWS total capture", vp.aws_total_capture_usd, "rev share + infra"],
+    ["Customer's own Bedrock bill", vp.customer_bedrock_direct_usd, "customer → AWS (your key/role)"],
+    ["AWS total capture", vp.aws_total_capture_usd, "rev share + infra + your Bedrock"],
     ["Cognition contribution", vp.cognition_contribution_usd, ""],
   ];
   const max = Math.max(...rows.map(r => r[1]), 1e-9);
@@ -123,9 +169,9 @@ function pools(vp) {
 
 function renderSession(s) {
   if (!s) return;
-  $("sess-id").textContent = `${s.id} · ${s.status} · ${s.usage.calls} Bedrock calls · ${s.usage.acus.toFixed(3)} ACUs`;
+  $("sess-id").textContent = `${s.id} · ${s.runtime} · ${s.status} · ${s.usage.calls} Bedrock calls · ${s.usage.acus.toFixed(3)} ACUs`;
   $("steps").innerHTML = (s.plan ? `<div class="step model"><b>plan</b>\n${esc(s.plan)}</div>` : "") + s.steps.map(st => {
-    if (st.type === "model") return `<div class="step model"><b>bedrock · ${st.role}</b> ${esc(st.model_id)} · in ${st.tokens_in} / out ${st.tokens_out} · ${st.acus} ACU${st.text ? "\n" + esc(st.text) : ""}</div>`;
+    if (st.type === "model") return `<div class="step model"><b>bedrock · ${st.role}</b> ${esc(st.model_id)} <span class="tag ${st.billed_to}">${esc(st.credential)}</span>${st.fallback_from && st.fallback_from.length ? ` <span class="fb">↪ fell back from ${esc(st.fallback_from.join(", "))}</span>` : ""} · in ${st.tokens_in} / out ${st.tokens_out} · ${st.acus} ACU${st.text ? "\n" + esc(st.text) : ""}</div>`;
     if (st.type === "tool") return `<div class="step tool"><b>tool · ${st.name}</b> ${esc(JSON.stringify(st.args))}\n<span class="muted">${esc(st.output.slice(0, 600))}</span></div>`;
     return `<div class="step error">${esc(st.text)}</div>`;
   }).join("");
@@ -137,16 +183,42 @@ function renderSession(s) {
   $("run-status").textContent = s.status === "running" ? "running on Bedrock…" : s.status;
 }
 
+const short = (m) => m.replace(/-\d{8}-v\d+:\d+$/, "");
+let me = null, orgDirty = false;
+
+function renderMe(m) {
+  me = m;
+  if (!m.user) { $("login").style.display = "flex"; $("who").textContent = "not signed in"; return; }
+  $("login").style.display = "none";
+  const o = m.org;
+  $("who").textContent = `${m.user.email} · ${o.name}`;
+  $("org-name").textContent = o.name; $("f-user").textContent = m.user.email;
+  $("vault").textContent = m.credential_vault === "agentcore-identity" ? "AgentCore Identity" : "the local vault (demo stand-in for AgentCore Identity)";
+  $("provider").textContent = o.provider_name; $("extid").textContent = o.external_id;
+  $("keyhint").textContent = o.has_api_key ? `Key on file: ••••${o.key_last4}` : "No key on file yet.";
+  $("route-region").textContent = o.region;
+  $("f-cred").textContent = {customer_api_key: "your Bedrock API key", customer_iam_role: "your IAM role (STS)", devin_managed: "Devin-managed account"}[o.credential_source];
+  $("f-rt").textContent = m.agent_runtime === "agentcore" ? "AgentCore Runtime microVM" : "local sandbox (demo)";
+  $("f-bill").textContent = o.billed_to === "customer" ? "tokens → your AWS bill · ACUs → Marketplace" : "tokens + agent → ACUs";
+  if (!orgDirty) {
+    document.querySelectorAll(".src").forEach(el => { const on = el.dataset.src === o.credential_source; el.classList.toggle("on", on); el.querySelector("input").checked = on; });
+    $("rolearn").value = o.role_arn; $("orgregion").value = o.region; $("managed").checked = o.devin_managed_routing;
+  }
+  $("routing").innerHTML = "<tr><th>Task</th><th>Primary</th><th>Fallbacks</th></tr>" + Object.entries(m.routing).map(([r, ms]) =>
+    `<tr><td>${r}</td><td><b>${esc(short(ms[0]))}</b></td><td class="muted">${ms.slice(1).map(x => esc(short(x))).join(" → ") || "—"}</td></tr>`).join("");
+}
+
 async function refresh() {
-  const r = await fetch("/v1/stats", {headers: authHeaders()}); if (!r.ok) return;
+  const r = await api("/v1/stats"); if (!r.ok) return;
   const d = await r.json(), h = d.health, s = d.summary;
+  renderMe(d.me); $("rt").textContent = "agent runtime: " + h.agent_runtime;
   $("mode").textContent = h.mode === "live" ? "LIVE Bedrock" : "MOCK mode"; $("mode").className = "pill " + h.mode;
   $("auth").textContent = "auth: " + h.auth; $("region").textContent = h.region;
   $("guard").textContent = h.guardrail ? "Guardrail: on" : "Guardrail: off";
   $("models").textContent = [...new Set(Object.values(h.role_models))].map(m => m.replace(/-\d{8}-v\d+:\d+$/, "")).join(" · ");
-  $("k-calls").textContent = s.calls;
+  $("k-calls").textContent = `${s.calls} (${s.fallbacks})`;
   $("k-tokens").textContent = `${(s.input_tokens/1000).toFixed(1)}k / ${(s.output_tokens/1000).toFixed(1)}k`;
-  $("k-bedrock").textContent = usd(s.value_pools.of_which_bedrock_usd);
+  $("k-bedrock").textContent = usd(s.value_pools.bedrock_total_usd);
   $("k-acus").textContent = s.acus.toFixed(3);
   $("k-rev").textContent = usd(s.value_pools.customer_revenue_usd);
   $("k-aws").textContent = usd(s.value_pools.aws_total_capture_usd);
@@ -155,16 +227,47 @@ async function refresh() {
   if (!current) $("pools").innerHTML = pools(s.value_pools);
   $("bymodel").innerHTML = "<tr><th>Model</th><th class=num>Calls</th><th class=num>Tokens</th><th class=num>Spend</th></tr>" +
     Object.entries(s.by_model).map(([m, v]) => `<tr><td>${esc(m)}</td><td class=num>${v.calls}</td><td class=num>${v.input_tokens + v.output_tokens}</td><td class=num>${usd(v.bedrock_usd)}</td></tr>`).join("");
-  $("recent").innerHTML = "<tr><th>Time</th><th>Source</th><th>Role</th><th>Model</th><th class=num>In/Out</th><th class=num>ms</th><th>Request ID</th></tr>" +
-    d.recent.slice(0, 15).map(c => `<tr><td>${new Date(c.ts*1000).toLocaleTimeString()}</td><td>${c.source}</td><td>${c.role}</td><td>${esc(c.model_id.replace(/-\d{8}-v\d+:\d+$/, ""))}</td><td class=num>${c.input_tokens}/${c.output_tokens}</td><td class=num>${c.latency_ms}</td><td class=muted>${esc(c.request_id.slice(0, 13))}</td></tr>`).join("");
+  $("recent").innerHTML = "<tr><th>Time</th><th>Org</th><th>Source</th><th>Role</th><th>Model</th><th>Billed to</th><th class=num>In/Out</th><th class=num>ms</th><th>Request ID</th></tr>" +
+    d.recent.slice(0, 15).map(c => `<tr><td>${new Date(c.ts*1000).toLocaleTimeString()}</td><td>${esc(c.org_id)}</td><td>${c.source}</td><td>${c.role}</td><td>${esc(short(c.model_id))}${c.fallback_from.length ? ' <span class="fb" title="fell back from ' + esc(c.fallback_from.join(", ")) + '">↪</span>' : ""}</td><td><span class="tag ${c.billed_to}">${c.billed_to}</span></td><td class=num>${c.input_tokens}/${c.output_tokens}</td><td class=num>${c.latency_ms}</td><td class=muted>${esc(c.request_id.slice(0, 13))}</td></tr>`).join("");
   const sess = current ? d.sessions.find(x => x.id === current) : d.sessions[0];
   if (sess) { current = sess.id; renderSession(sess); }
 }
 
 $("run").onclick = async () => {
   $("run").disabled = true; $("diffwrap").style.display = "none"; $("sumwrap").style.display = "none";
-  const r = await fetch("/v1/agent/sessions", {method: "POST", headers: {"content-type": "application/json", ...authHeaders()}, body: JSON.stringify({task: $("task").value})});
+  const r = await api("/v1/agent/sessions", "POST", {task: $("task").value});
   const s = await r.json(); current = s.id; refresh();
+};
+$("signin").onclick = async () => {
+  const r = await api("/v1/auth/login", "POST", {email: $("email").value});
+  const d = await r.json();
+  if (!r.ok) { $("login-err").textContent = d.detail || "sign-in failed"; return; }
+  sessionStorage.setItem("devinSession", d.session_token); current = null; orgDirty = false; renderMe(d); refresh();
+};
+$("logout").onclick = async () => { await api("/v1/auth/logout", "POST"); sessionStorage.removeItem("devinSession"); current = null; renderMe({user: null}); };
+document.querySelectorAll(".src").forEach(el => el.onclick = () => {
+  orgDirty = true; document.querySelectorAll(".src").forEach(x => { x.classList.toggle("on", x === el); x.querySelector("input").checked = x === el; });
+});
+["rolearn", "orgregion", "managed"].forEach(id => $(id).addEventListener("input", () => orgDirty = true));
+$("saveorg").onclick = async () => {
+  const src = document.querySelector(".src input:checked")?.value;
+  const r = await api("/v1/org/settings", "PUT", {credential_source: src, role_arn: $("rolearn").value, region: $("orgregion").value, devin_managed_routing: $("managed").checked});
+  const d = await r.json();
+  $("conn").innerHTML = r.ok ? '<span class="ok">Settings saved.</span>' : `<span class="err">${esc(d.detail)}</span>`;
+  if (r.ok) { orgDirty = false; renderMe(d); }
+};
+$("savekey").onclick = async (e) => {
+  e.preventDefault();
+  const r = await api("/v1/org/bedrock-key", "PUT", {api_key: $("apikey").value}); const d = await r.json();
+  $("apikey").value = "";
+  $("conn").innerHTML = r.ok ? `<span class="ok">Key stored in ${esc(d.credential_vault)} as ${esc(d.org.provider_name)}.</span>` : `<span class="err">${esc(d.detail)}</span>`;
+  if (r.ok) { orgDirty = false; renderMe(d); }
+};
+$("testconn").onclick = async () => {
+  $("conn").textContent = "Calling Bedrock with your org's credentials…";
+  const d = await (await api("/v1/org/test-connection", "POST")).json();
+  $("conn").innerHTML = d.ok ? `<span class="ok">OK</span> · ${esc(short(d.model_id))} · ${esc(d.credential)} · billed to ${esc(d.billed_to)} · ${esc(d.request_id)}` : `<span class="err">${esc(d.error)}</span>`;
+  refresh();
 };
 refresh(); setInterval(refresh, 1500);
 </script>

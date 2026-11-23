@@ -66,7 +66,10 @@ def main(argv=None):
 
     from .agent import Agent
     from .gateway import SAMPLE_REPO
-    agent = Agent(client, router, ledger)
+    from .inference import build_stack
+    stack = build_stack(settings, base_client=client if settings.resolved_mode == "mock" else None)
+    ledger = stack.ledger
+    agent = Agent(stack.inference, stack.tenants.default_org)
     sess = agent.create_session(args.task, args.repo or str(SAMPLE_REPO))
     print(f"session {sess.id} in {sess.repo_dir} (mode={settings.resolved_mode}, auth={settings.auth_method})")
     agent.run(sess)

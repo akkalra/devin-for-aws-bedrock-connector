@@ -1,0 +1,38 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadOrgBedrockKeysFromAgentCoreIdentity",
+      "Effect": "Allow",
+      "Action": ["bedrock-agentcore:GetResourceApiKey", "bedrock-agentcore:GetWorkloadAccessToken",
+                 "bedrock-agentcore:GetWorkloadAccessTokenForUserId", "bedrock-agentcore:GetWorkloadAccessTokenForJWT"],
+      "Resource": ["arn:aws:bedrock-agentcore:*:*:workload-identity-directory/default*",
+                   "arn:aws:bedrock-agentcore:*:*:token-vault/default*"]
+    },
+    {
+      "Sid": "TokenVaultSecrets",
+      "Effect": "Allow",
+      "Action": "secretsmanager:GetSecretValue",
+      "Resource": "arn:aws:secretsmanager:*:*:secret:bedrock-agentcore-identity!*"
+    },
+    {
+      "Sid": "AssumeCustomerBedrockRoles",
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::*:role/DevinBedrockAccess"
+    },
+    {
+      "Sid": "DevinManagedBedrock",
+      "Effect": "Allow",
+      "Action": ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream", "bedrock:ApplyGuardrail"],
+      "Resource": ["arn:aws:bedrock:*::foundation-model/*", "arn:aws:bedrock:*:*:inference-profile/*"]
+    },
+    {
+      "Sid": "Logs",
+      "Effect": "Allow",
+      "Action": ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents", "xray:PutTraceSegments",
+                 "cloudwatch:PutMetricData"],
+      "Resource": "*"
+    }
+  ]
+}

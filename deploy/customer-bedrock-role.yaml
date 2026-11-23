@@ -1,0 +1,39 @@
+# Deployed by the customer in their own AWS account. Lets Devin call Amazon
+# Bedrock as this role, so tokens bill to (and count toward) the customer's AWS
+# commitment and show up in their CloudTrail. The ExternalId is shown in Devin's
+# org settings and prevents confused-deputy use of the role.
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Devin access to Amazon Bedrock in this account
+Parameters:
+  DevinAccountId:
+    Type: String
+    Description: AWS account that runs the Devin backend
+  ExternalId:
+    Type: String
+    Description: External ID from Devin org settings
+Resources:
+  DevinBedrockAccess:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: DevinBedrockAccess
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { AWS: !Sub "arn:aws:iam::${DevinAccountId}:root" }
+            Action: sts:AssumeRole
+            Condition: { StringEquals: { "sts:ExternalId": !Ref ExternalId } }
+      Policies:
+        - PolicyName: bedrock-invoke
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [bedrock:InvokeModel, bedrock:InvokeModelWithResponseStream, bedrock:ApplyGuardrail]
+                Resource:
+                  - arn:aws:bedrock:*::foundation-model/*
+                  - !Sub "arn:aws:bedrock:*:${AWS::AccountId}:inference-profile/*"
+Outputs:
+  RoleArn:
+    Value: !GetAtt DevinBedrockAccess.Arn

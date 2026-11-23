@@ -27,6 +27,17 @@ class ModelRouter:
     def for_role(self, role: str) -> str:
         return self.settings.role_models.get(role, self.settings.role_models["coder"])
 
+    def candidates(self, role: str, org=None) -> list[str]:
+        """Ordered Bedrock model ids for a role: Devin's primary pick, then fallbacks.
+
+        An org that turns off Devin-managed routing and pins models for a role
+        gets exactly its pinned list.
+        """
+        if org is not None and not org.devin_managed_routing and org.routing_overrides.get(role):
+            return list(org.routing_overrides[role])
+        chain = [self.for_role(role)] + self.settings.fallbacks.get(role, [])
+        return list(dict.fromkeys(chain))
+
     def resolve(self, requested: str | None) -> tuple[str, str]:
         """Return (role, bedrock_model_id) for any model name a client sends.
 

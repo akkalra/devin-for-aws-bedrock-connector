@@ -27,3 +27,18 @@ share + $0.90 Cognition infra bill to AWS = **$1.35 AWS capture per ACU (60%)**;
 $0.90 Cognition contribution. At 10M ACUs/yr that is $13.5M/yr AWS capture:
 $4.5M revenue share plus a $9.0M infra bill. How much of the $9.0M is Bedrock
 depends on model mix and runtime share; the dashboard shows the measured split for each run.
+
+## Bring your own Bedrock (customer key or role)
+
+When an org uses its own Bedrock API key or IAM role, AWS bills the tokens straight to the
+customer's account. Those dollars are not Cognition cost and are not in ACUs; the ledger
+records them as `customer_bedrock_direct_usd` and adds them to AWS total capture:
+
+```text
+cognition_infra = Devin-managed Bedrock + runtime + other AWS
+acus            = cognition_infra / aws_cogs_per_acu
+aws_capture     = aws_revenue_share + cognition_infra + customer_bedrock_direct
+```
+
+The ACU bill gets smaller, the customer's AWS Bedrock consumption (and commit drawdown) gets
+larger, and AWS total capture is about the same.

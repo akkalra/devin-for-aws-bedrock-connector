@@ -14,10 +14,11 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from .bedrock import ConverseResult
-from .metering import Ledger
-from .router import ModelRouter
+from .inference import CallContext, InferenceService
+from .tenancy import Org
 
 TOOLS = [
     {"toolSpec": {"name": "list_files", "description": "List files under a directory of the repo.",
@@ -54,21 +55,34 @@ class AgentSession:
     steps: list[dict] = field(default_factory=list)
     started_at: float = 0.0
     ended_at: float = 0.0
+    org: Any = field(default=None, repr=False)
+    user_id: str = ""
+    runtime: str = "local"
+    workload_token: str | None = field(default=None, repr=False)
+
+    @property
+    def org_id(self) -> str:
+        return self.org.id if self.org else "demo"
 
     def to_dict(self) -> dict:
         return {k: getattr(self, k) for k in ("id", "task", "repo_dir", "status", "plan", "summary", "diff",
-                                              "steps", "started_at", "ended_at")}
+                                              "steps", "started_at", "ended_at", "org_id", "user_id", "runtime")}
 
 
 class Agent:
-    def __init__(self, client, router: ModelRouter, ledger: Ledger, max_steps: int = 25):
-        self.client, self.router, self.ledger, self.max_steps = client, router, ledger, max_steps
+    def __init__(self, inference: InferenceService, default_org: Org | None = None, max_steps: int = 25):
+        self.inference, self.max_steps = inference, max_steps
+        self.router, self.ledger = inference.router, inference.ledger
+        self.default_org = default_org
         self.sessions: dict[str, AgentSession] = {}
 
     # ---------------------------------------------------------------- public
 
-    def create_session(self, task: str, source_repo: str, workdir: str = "runs") -> AgentSession:
-        sess = AgentSession(task=task, repo_dir="")
+    def create_session(self, task: str, source_repo: str, workdir: str = "runs", org: Org | None = None,
+                       user_id: str = "", sess_id: str | None = None) -> AgentSession:
+        sess = AgentSession(task=task, repo_dir="", org=org or self.default_org, user_id=user_id)
+        if sess_id:
+            sess.id = sess_id
         dest = Path(workdir) / sess.id
         workroot = os.path.realpath(workdir)
 
@@ -99,17 +113,18 @@ class Agent:
             sess.steps.append({"type": "error", "text": f"{type(e).__name__}: {e}"})
         finally:
             sess.ended_at = time.time()
-            self.ledger.record_runtime(sess.id, sess.ended_at - sess.started_at)
+            self.ledger.record_runtime(sess.id, sess.ended_at - sess.started_at, sess.org_id)
         return sess
 
     # ---------------------------------------------------------------- phases
 
     def _call(self, sess: AgentSession, role: str, messages, system=None, tools=None) -> ConverseResult:
-        model_id = self.router.for_role(role)
-        res = self.client.converse(model_id, messages, system=[{"text": system or SYSTEM}], tools=tools)
-        rec = self.ledger.record_call(session_id=sess.id, role=role, source="agent", result=res)
-        sess.steps.append({"type": "model", "role": role, "model_id": model_id, "tokens_in": res.input_tokens,
-                           "tokens_out": res.output_tokens, "acus": round(rec.acus, 4), "text": res.text[:600]})
+        ctx = CallContext(sess.org, sess.user_id or "anonymous", sess.id, "agent", sess.workload_token)
+        res, rec = self.inference.converse(ctx, role, messages, system=[{"text": system or SYSTEM}], tools=tools)
+        sess.steps.append({"type": "model", "role": role, "model_id": res.model_id, "tokens_in": res.input_tokens,
+                           "tokens_out": res.output_tokens, "acus": round(rec.acus, 4), "text": res.text[:600],
+                           "billed_to": rec.billed_to, "credential": rec.auth_method,
+                           "fallback_from": rec.fallback_from})
         return res
 
     def _plan(self, sess: AgentSession) -> None:

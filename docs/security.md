@@ -15,3 +15,16 @@ Deployment notes: `serve` refuses to bind a non-loopback host in live mode unles
 Terminate TLS in front of the gateway (ALB / API Gateway / VPC Lattice); the container itself speaks plain HTTP.
 Agent sessions only accept repos under `AGENT_REPO_ROOT`. The demo runs agent tool commands as the gateway
 process user; production runs each session in its own isolated sandbox (e.g. a Firecracker microVM / AgentCore Runtime).
+
+## Customer Bedrock credentials (AgentCore Identity)
+
+- A customer's Bedrock API key is sent once to `PUT /v1/org/bedrock-key` and written to
+  AgentCore Identity (token vault, encrypted with an AWS-owned or customer KMS key). Devin's
+  database keeps only the last four characters. The key is never returned by any endpoint.
+- At run time the key is fetched with a workload access token bound to the signed-in user,
+  and used only for that tenant's Bedrock client. Agent subprocesses still get no `AWS_*`
+  environment variables.
+- Preferred for enterprises: a cross-account IAM role (`deploy/customer-bedrock-role.yaml`)
+  with an ExternalId, so there is no long-lived key and every call is in the customer's CloudTrail.
+- Demo login (`/v1/auth/login`) maps an email domain to an org with no password. Replace it
+  with IAM Identity Center / OIDC before any shared deployment.
