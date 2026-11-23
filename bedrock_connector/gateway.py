@@ -96,10 +96,13 @@ def create_app(settings: Settings | None = None, client=None) -> FastAPI:
     async def start_session(request: Request):
         body = await request.json()
         task = body.get("task") or "Fix the failing tests."
-        repo = body.get("repo") or str(SAMPLE_REPO)
-        if not Path(repo).is_dir():
+        repo = Path(body.get("repo") or SAMPLE_REPO).resolve()
+        allowed = Path(os.environ.get("AGENT_REPO_ROOT", SAMPLE_REPO.parent)).resolve()
+        if repo != allowed and allowed not in repo.parents:
+            raise HTTPException(403, f"repo must be under AGENT_REPO_ROOT ({allowed})")
+        if not repo.is_dir():
             raise HTTPException(400, f"repo not found: {repo}")
-        sess = agent.create_session(task, repo, workdir=os.environ.get("AGENT_WORKDIR", "runs"))
+        sess = agent.create_session(task, str(repo), workdir=os.environ.get("AGENT_WORKDIR", "runs"))
         agent.run_async(sess)
         return JSONResponse(sess.to_dict(), status_code=202)
 
