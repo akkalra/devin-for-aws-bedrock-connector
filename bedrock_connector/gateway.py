@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 from . import __version__
@@ -63,7 +64,7 @@ def create_app(settings: Settings | None = None, client=None) -> FastAPI:
     async def chat_completions(request: Request):
         body = await request.json()
         sid = request.headers.get("x-session-id", "api")
-        res = call_bedrock(openai_to_converse(body), body.get("model"), "openai", sid)
+        res = await run_in_threadpool(call_bedrock, openai_to_converse(body), body.get("model"), "openai", sid)
         out = converse_to_openai(res, body.get("model") or res.model_id)
         if body.get("stream"):
             def gen():
@@ -77,7 +78,7 @@ def create_app(settings: Settings | None = None, client=None) -> FastAPI:
     async def messages(request: Request):
         body = await request.json()
         sid = request.headers.get("x-session-id", "api")
-        res = call_bedrock(anthropic_to_converse(body), body.get("model"), "anthropic", sid)
+        res = await run_in_threadpool(call_bedrock, anthropic_to_converse(body), body.get("model"), "anthropic", sid)
         out = converse_to_anthropic(res, body.get("model") or res.model_id)
         if body.get("stream"):
             def gen():
