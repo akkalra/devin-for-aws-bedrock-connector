@@ -35,6 +35,7 @@ class Org:
     external_id: str = ""  # stable per org, so customer role trust policies survive restarts
     devin_managed_routing: bool = True
     routing_overrides: dict[str, list[str]] = field(default_factory=dict)
+    acu_budget: float = 0.0  # ACU cap for the org; 0 means no budget
 
     def __post_init__(self):
         if not self.external_id:
@@ -65,7 +66,7 @@ class TenantStore:
     def __init__(self, region: str = "us-east-1"):
         self._lock = threading.Lock()
         self.orgs = {
-            "acme": Org("acme", "Acme Financial", "acme.com", region),
+            "acme": Org("acme", "Acme Financial", "acme.com", region, acu_budget=25.0),
             "globex": Org("globex", "Globex Retail", "globex.com", region, credential_source="customer_iam_role"),
             "demo": Org("demo", "Demo (no login)", "", region, credential_source="devin_managed"),
         }
@@ -113,8 +114,12 @@ class TenantStore:
         region = body.get("region", org.region).strip()
         if not re.fullmatch(r"[a-z]{2}(-gov)?-[a-z]+-\d", region):
             raise ValueError("region must be an AWS region such as us-east-1")
+        budget = body.get("acu_budget", org.acu_budget)
+        if isinstance(budget, bool) or not isinstance(budget, (int, float)) or not 0 <= budget < 1e9:
+            raise ValueError("acu_budget must be a non-negative number of ACUs (0 = no budget)")
         with self._lock:
             org.credential_source, org.role_arn, org.region = src, role_arn, region
+            org.acu_budget = float(budget)
             org.routing_overrides = {r: list(dict.fromkeys(ms)) for r, ms in overrides.items() if ms}
             org.devin_managed_routing = bool(body.get("devin_managed_routing", org.devin_managed_routing))
         return org

@@ -2,62 +2,116 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Devin for AWS — Bedrock connector</title>
+<title>Devin for AWS · Devin AWS Instance</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  :root { --bg:#0f1720; --panel:#16202c; --line:#243244; --text:#e6edf3; --muted:#8b9bb0; --aws:#ff9900; --ok:#3fb950; --err:#f85149; --blue:#58a6ff; }
+  :root { --bg:#f2f2f2; --panel:#fafafa; --line:#d9d9d9; --text:#111; --muted:#6b6b6b; --accent:#3b2cf5; --aws:#e88a00; --ok:#1a7f37; --err:#cf222e; --soft:#ecebff; }
   * { box-sizing:border-box; }
-  body { margin:0; font:14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); }
-  header { display:flex; align-items:center; gap:16px; padding:14px 24px; border-bottom:1px solid var(--line); background:#0b121a; }
-  header h1 { font-size:18px; margin:0; font-weight:600; }
-  header h1 span { color:var(--aws); }
-  .pill { padding:3px 10px; border-radius:999px; border:1px solid var(--line); font-size:12px; color:var(--muted); }
-  .pill.live { color:var(--ok); border-color:var(--ok); }
-  .pill.mock { color:var(--aws); border-color:var(--aws); }
-  main { padding:20px 24px; display:grid; gap:16px; grid-template-columns: repeat(12, 1fr); }
-  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
-  .kpi { grid-column: span 2; }
-  .kpi .v { font-size:24px; font-weight:600; margin-top:4px; }
-  .kpi .l { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
-  .span4 { grid-column: span 4; } .span5 { grid-column: span 5; } .span6 { grid-column: span 6; } .span7 { grid-column: span 7; } .span8 { grid-column: span 8; } .span12 { grid-column: span 12; }
-  h2 { font-size:13px; margin:0 0 10px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; font-weight:600; }
+  body { margin:0; font:14px/1.45 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); }
+  .serif { font-family: Georgia, "Times New Roman", serif; }
+  .mono, .lbl, .chip { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  header { display:flex; align-items:center; gap:10px; padding:16px 28px; border-bottom:1px solid var(--line); background:#fff; flex-wrap:wrap; }
+  header h1 { font-size:20px; margin:0; font-weight:500; letter-spacing:-.01em; }
+  header h1 small { color:var(--muted); font-weight:400; font-size:13px; margin-left:8px; }
+  .pill { padding:2px 9px; border-radius:999px; border:1px solid var(--line); font-size:12px; color:var(--muted); background:#fff; }
+  .pill.live { color:var(--ok); border-color:var(--ok); } .pill.mock { color:var(--aws); border-color:var(--aws); }
+  main { padding:22px 28px 40px; display:grid; gap:16px; grid-template-columns: repeat(12, 1fr); max-width:1500px; margin:0 auto; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:16px 18px; min-width:0; }
+  .span3 { grid-column: span 3; } .span4 { grid-column: span 4; } .span5 { grid-column: span 5; } .span6 { grid-column: span 6; } .span7 { grid-column: span 7; } .span8 { grid-column: span 8; } .span12 { grid-column: span 12; }
+  @media (max-width: 1100px) { .span3,.span4,.span5,.span6,.span7,.span8 { grid-column: span 12; } }
+  h2 { font-size:18px; margin:0 0 4px; font-weight:500; letter-spacing:-.01em; }
+  .lbl { font-size:11px; color:var(--accent); text-transform:uppercase; letter-spacing:.06em; }
+  .sub { color:var(--muted); font-size:13px; margin:0 0 12px; }
+  .section { grid-column: span 12; margin-top:10px; display:flex; align-items:baseline; gap:12px; border-bottom:1px solid #bdbdbd; padding-bottom:6px; }
+  .section h3 { margin:0; font-size:22px; font-weight:500; letter-spacing:-.015em; }
+  .section span { color:var(--muted); font-size:13px; }
   table { width:100%; border-collapse:collapse; font-size:13px; }
-  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
-  th { color:var(--muted); font-weight:500; }
+  th, td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:500; font-size:12px; }
   td.num, th.num { text-align:right; font-variant-numeric: tabular-nums; }
-  .bar { height:10px; border-radius:4px; background:var(--aws); }
-  .flow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px; }
-  .flow .n { padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:#0f1a26; }
+  .chip { font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; padding:1px 6px; border-radius:3px; border:1px solid var(--line); color:var(--muted); white-space:nowrap; }
+  .chip.proposed { color:var(--accent); border-color:var(--accent); } .chip.today { color:var(--text); border-color:var(--text); }
+  .chip.live { color:var(--ok); border-color:var(--ok); } .chip.sim { color:var(--aws); border-color:var(--aws); } .chip.no { color:var(--muted); border-style:dashed; }
+  .bar { height:8px; background:#e3e3e3; border-radius:2px; overflow:hidden; } .bar > div { height:100%; background:var(--accent); }
+  .bar.aws > div { background:var(--aws); }
+  .pools .bar { height:9px; background:none; } .pools .bar > div { border-radius:2px; }
+  /* Buy · Run · Grow */
+  .brg { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; grid-column:span 12; }
+  @media (max-width: 1100px) { .brg { grid-template-columns:1fr; } }
+  .brg .card h2 { border-bottom:1px solid var(--text); padding-bottom:6px; margin:6px 0 10px; }
+  .brg .card.grow h2 { border-color:var(--accent); }
+  .metric { display:flex; justify-content:space-between; align-items:baseline; padding:5px 0; border-bottom:1px dashed var(--line); gap:10px; }
+  .metric .v { font-size:20px; font-variant-numeric: tabular-nums; }
+  .metric .l { color:var(--muted); font-size:12.5px; }
+  .chev { display:flex; grid-column:span 12; gap:0; margin-top:-4px; }
+  .chev div { flex:1; padding:10px 18px; border:1px solid var(--text); margin-right:-1px; clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%); text-align:center; background:#fff; }
+  .chev div:first-child { clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%); }
+  .chev div:last-child { color:var(--accent); background:var(--soft); }
+  /* flow */
+  .flow { display:flex; align-items:stretch; gap:6px; flex-wrap:wrap; font-size:13px; }
+  .flow .n { padding:8px 10px; border:1px solid var(--line); border-radius:3px; background:#fff; flex:1; min-width:140px; }
   .flow .n.aws { border-color:var(--aws); }
-  .flow .a { color:var(--muted); }
-  textarea, input { width:100%; background:#0b121a; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:8px; font:inherit; }
-  button { background:var(--aws); color:#111; border:0; border-radius:8px; padding:8px 14px; font-weight:600; cursor:pointer; }
-  button:disabled { opacity:.5; cursor:default; }
+  .flow .a { color:var(--accent); align-self:center; }
+  textarea, input { width:100%; background:#fff; color:var(--text); border:1px solid var(--line); border-radius:3px; padding:7px 8px; font:inherit; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:3px; padding:7px 14px; font-weight:500; cursor:pointer; font:inherit; }
+  button:disabled { opacity:.45; cursor:default; }
+  button.ghost { background:#fff; color:var(--text); border:1px solid var(--line); }
   .steps { max-height:420px; overflow:auto; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; }
-  .step { padding:6px 8px; border-left:3px solid var(--line); margin:4px 0; background:#0f1a26; white-space:pre-wrap; word-break:break-word; }
-  .step.model { border-color:var(--aws); }
-  .step.tool { border-color:var(--blue); }
-  .step.error { border-color:var(--err); }
+  .step { padding:6px 8px; border-left:3px solid var(--line); margin:4px 0; background:#fff; white-space:pre-wrap; word-break:break-word; }
+  .step.model { border-color:var(--aws); } .step.tool { border-color:var(--accent); } .step.error { border-color:var(--err); }
   .muted { color:var(--muted); }
-  pre { white-space:pre-wrap; background:#0b121a; padding:10px; border-radius:8px; border:1px solid var(--line); font-size:12px; max-height:260px; overflow:auto; }
+  pre { white-space:pre-wrap; background:#fff; padding:10px; border-radius:3px; border:1px solid var(--line); font-size:12px; max-height:260px; overflow:auto; }
   .add { color:var(--ok); } .del { color:var(--err); }
-  button.ghost { background:transparent; color:var(--muted); border:1px solid var(--line); }
   .right { margin-left:auto; display:flex; gap:8px; align-items:center; }
-  #login { position:fixed; inset:0; background:rgba(5,10,16,.85); display:none; align-items:center; justify-content:center; z-index:10; }
-  #login .card { width:420px; }
-  .src { display:flex; gap:10px; align-items:flex-start; padding:8px; border:1px solid var(--line); border-radius:8px; margin:6px 0; cursor:pointer; }
-  .src.on { border-color:var(--aws); background:#1d1a12; }
+  #login { position:fixed; inset:0; background:rgba(20,20,20,.55); display:none; align-items:center; justify-content:center; z-index:10; }
+  #login .card { width:440px; background:#fff; }
+  .src { display:flex; gap:10px; align-items:flex-start; padding:8px; border:1px solid var(--line); border-radius:3px; margin:6px 0; cursor:pointer; background:#fff; }
+  .src.on { border-color:var(--accent); background:var(--soft); }
   .src input { width:auto; margin-top:3px; }
   .row { display:flex; gap:8px; align-items:center; margin-top:8px; }
-  .tag { font-size:11px; padding:1px 6px; border-radius:4px; border:1px solid var(--line); color:var(--muted); }
-  .tag.customer { color:var(--ok); border-color:var(--ok); } .tag.cognition { color:var(--blue); border-color:var(--blue); }
-  .fb { color:var(--aws); }
-  .ok { color:var(--ok); } .err { color:var(--err); }
+  .tag { font-size:11px; padding:1px 6px; border-radius:3px; border:1px solid var(--line); color:var(--muted); }
+  .tag.customer { color:var(--ok); border-color:var(--ok); } .tag.cognition { color:var(--accent); border-color:var(--accent); }
+  .fb { color:var(--aws); } .ok { color:var(--ok); } .err { color:var(--err); }
+  a { color:var(--accent); }
+  /* use cases */
+  .uc { display:grid; grid-template-columns:repeat(3,1fr); gap:0; border-top:1px solid #bdbdbd; }
+  @media (max-width: 900px) { .uc { grid-template-columns:1fr; } }
+  .uc .t { padding:10px 12px; border-bottom:1px solid var(--line); cursor:pointer; position:relative; }
+  .uc .t:hover { background:#fff; } .uc .t.on { background:var(--soft); box-shadow: inset 3px 0 0 var(--accent); }
+  .uc .t .h { display:flex; justify-content:space-between; color:var(--accent); font-size:13px; }
+  .uc .t .d { font-size:15px; margin:3px 0; } .uc .t .s { color:var(--muted); font-size:12px; }
+  .uc .t .run { position:absolute; right:12px; bottom:10px; }
+  /* trainium pipeline */
+  .pipe { display:flex; gap:8px; align-items:stretch; flex-wrap:wrap; }
+  .pipe .p { flex:1; min-width:120px; border:1px solid var(--line); padding:10px; background:#fff; border-radius:2px; }
+  .pipe .p.next { border-style:dashed; } .pipe .p.focus { border-color:var(--accent); color:var(--accent); }
+  .pipe .p .k { color:var(--accent); font-size:12px; } .pipe .p .h { font-size:15px; margin:2px 0; }
+  .pipe .p .s { color:var(--muted); font-size:12px; }
+  .pipe .ar { align-self:center; color:var(--accent); }
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-top:16px; }
+  .stats div b { display:block; font-size:30px; font-weight:400; } .stats div span { color:var(--muted); font-size:12px; }
+  .stats .acc b { color:var(--accent); }
+  /* ancillary */
+  .drag { display:grid; grid-template-columns:120px repeat(4,1fr); gap:6px; align-items:stretch; }
+  .drag .rl { align-self:center; font-size:13px; }
+  .drag .c { border:1px solid var(--line); background:#fff; padding:7px 9px; border-radius:2px; font-size:12.5px; }
+  .drag .c .k { color:var(--accent); font-size:12px; } .drag .c .v { font-variant-numeric:tabular-nums; margin-top:3px; }
+  .drag .c.hot { border-color:var(--accent); background:var(--soft); }
+  /* 90 days */
+  .plan { display:grid; grid-template-columns:70px repeat(3,1fr); gap:0 16px; font-size:13px; }
+  .plan .hd { color:var(--accent); border-bottom:1px solid var(--accent); padding:4px 0; }
+  .plan .rl { padding:8px 0; border-bottom:1px solid var(--line); }
+  .plan .cl { padding:8px 0; border-bottom:1px solid var(--line); }
+  .plan .cl div { border-left:2px solid var(--accent); padding-left:8px; margin:2px 0; }
+  .plan .cl div.here { background:var(--soft); }
+  .plan .cl div.here::after { content:" ● in demo"; color:var(--accent); font-size:11px; font-family: ui-monospace, monospace; }
+  .plan .gate { border:1px solid var(--text); padding:6px 8px; margin:8px 0; } .plan .gate.focus { border-color:var(--accent); color:var(--accent); }
+  footer { grid-column:span 12; color:var(--muted); font-size:12px; border-top:1px solid var(--line); padding-top:10px; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Devin for AWS <span>· Amazon Bedrock connector</span></h1>
+  <h1>Devin for AWS <small>Devin AWS Instance · Cognition × AWS</small></h1>
   <span id="mode" class="pill">…</span>
   <span id="auth" class="pill">…</span>
   <span id="region" class="pill">…</span>
@@ -66,26 +120,54 @@
   <div class="right"><span id="who" class="pill">not signed in</span><button id="logout" class="ghost">Sign out</button></div>
 </header>
 <div id="login"><div class="card">
-  <h2>Sign in to Devin</h2>
-  <div class="muted" style="margin-bottom:10px">IAM Identity Center SSO (simulated). Your email domain selects your Devin org.</div>
+  <div class="lbl">Devin AWS Instance</div>
+  <h2>Sign in with IAM Identity Center</h2>
+  <div class="muted" style="margin-bottom:10px">Simulated SSO for the demo. Your email domain selects your Devin org.</div>
   <input id="email" value="dev@acme.com" placeholder="you@company.com">
   <div class="row"><button id="signin">Sign in</button><span class="muted" id="login-err"></span></div>
-  <div class="muted" style="font-size:12px;margin-top:10px">Demo orgs: <b>acme.com</b> (own Bedrock API key) · <b>globex.com</b> (cross-account IAM role)</div>
+  <div class="muted" style="font-size:12px;margin-top:10px">Demo orgs: <b>acme.com</b> (own Bedrock API key, 25 ACU budget) · <b>globex.com</b> (cross-account IAM role)</div>
 </div></div>
 <main>
+  <div class="section"><h3>Bought, run and grown on AWS</h3><span>Live totals for <b id="org-name2">your org</b>. Every money figure is illustrative.</span></div>
+  <div class="brg">
+    <div class="card"><div class="lbl">01 · Buy</div><h2>AWS-native commerce</h2>
+      <div class="metric"><span class="l">ACUs metered to the AWS bill</span><span class="v" id="k-acus">0</span></div>
+      <div class="metric"><span class="l">Devin spend on the AWS bill (ACUs × price)</span><span class="v" id="k-rev">$0</span></div>
+      <div class="metric"><span class="l">Seller quota retired, 1:1</span><span class="v" id="k-seller">$0</span></div>
+      <div style="margin-top:10px"><div class="metric" style="border:0"><span class="l">PPA drawdown (Devin + your own Bedrock)</span><span class="mono" id="k-ppa">$0</span></div><div class="bar aws"><div id="b-ppa" style="width:0"></div></div></div>
+      <div style="margin-top:10px"><div class="metric" style="border:0"><span class="l">ACU budget</span><span class="mono" id="k-budget">none</span></div><div class="bar"><div id="b-budget" style="width:0"></div></div></div>
+    </div>
+    <div class="card"><div class="lbl">02 · Run</div><h2>Hosted on AWS</h2>
+      <div class="metric"><span class="l">Inference on Amazon Bedrock</span><span class="v" id="k-share">—</span></div>
+      <div class="metric"><span class="l">Bedrock calls (fallbacks)</span><span class="v" id="k-calls">0</span></div>
+      <div class="metric"><span class="l">Tokens in / out</span><span class="v" id="k-tokens">0</span></div>
+      <div class="metric"><span class="l">Tokens per ACU <span class="mono" style="font-size:11px">measured</span></span><span class="v" id="k-tpa">—</span></div>
+      <div class="metric"><span class="l">Agent execution</span><span class="mono" id="k-exec">—</span></div>
+    </div>
+    <div class="card grow"><div class="lbl">03 · Grow</div><h2>Usage lands on AWS</h2>
+      <div class="metric"><span class="l">AWS total capture</span><span class="v" id="k-aws" style="color:var(--aws)">$0</span></div>
+      <div class="metric"><span class="l">Bedrock tokens (all accounts)</span><span class="v" id="k-bedrock">$0</span></div>
+      <div class="metric"><span class="l">Compute and storage (sandboxes + other AWS)</span><span class="v" id="k-infra">$0</span></div>
+      <div class="metric"><span class="l">Trainium workloads</span><span class="mono"><a href="https://github.com/akkalra/cuda-inference-service/pull/2" target="_blank" rel="noopener">1 migration PR (Trn2)</a></span></div>
+    </div>
+  </div>
+  <div class="chev"><div>Customers buy Devin on AWS</div><div>Devin runs on AWS</div><div>Usage lands on AWS</div></div>
+
+  <div class="section"><h3>Devin for AWS: product architecture</h3><span>Deck status (TODAY = under the Sept 2026 SCA, PROPOSED = to validate in the pilot) next to what this demo runs.</span></div>
   <div class="card span12">
-    <h2>Request path: Devin login → Devin routing → AgentCore → your Amazon Bedrock</h2>
-    <div class="flow">
-      <div class="n">Devin login<br><span class="muted" id="f-user">IAM Identity Center SSO</span></div><div class="a">→</div>
-      <div class="n">Devin backend<br><span class="muted">model routing · fallbacks · metering</span></div><div class="a">→</div>
+    <table id="arch"></table>
+    <div class="flow" style="margin-top:14px">
+      <div class="n">Enterprise customer<br><span class="muted" id="f-user">IAM Identity Center</span></div><div class="a">→</div>
+      <div class="n">Control plane<br><span class="muted">Devin routing · fallbacks · metering</span></div><div class="a">→</div>
       <div class="n aws">AgentCore Identity<br><span class="muted" id="f-cred">org Bedrock credential</span></div><div class="a">→</div>
-      <div class="n aws">AgentCore Runtime<br><span class="muted" id="f-rt">agent sandbox</span></div><div class="a">→</div>
-      <div class="n aws">Amazon Bedrock Converse<br><span class="muted" id="models">…</span></div><div class="a">→</div>
-      <div class="n aws">Billing<br><span class="muted" id="f-bill">tokens → AWS bill · ACUs → Marketplace</span></div>
+      <div class="n aws">Agent execution<br><span class="muted" id="f-rt">agent sandbox</span></div><div class="a">→</div>
+      <div class="n aws">Amazon Bedrock<br><span class="muted" id="models">…</span></div><div class="a">→</div>
+      <div class="n aws">AWS bill<br><span class="muted" id="f-bill">tokens → AWS bill · ACUs → Marketplace</span></div>
     </div>
   </div>
 
   <div class="card span5">
+    <div class="lbl">Identity · Commerce</div>
     <h2>Inference credentials · <span id="org-name"></span></h2>
     <label class="src" data-src="customer_api_key"><input type="radio" name="src" value="customer_api_key"><div><b>Your Amazon Bedrock API key</b> <span class="tag">default</span><br><span class="muted">Stored in <span id="vault">AgentCore Identity</span> as <code id="provider"></code>. Devin never returns it.</span>
       <div class="row"><input id="apikey" type="password" placeholder="ABSK… (Bedrock API key)" autocomplete="off"><button id="savekey">Save</button></div>
@@ -93,50 +175,84 @@
     <label class="src" data-src="customer_iam_role"><input type="radio" name="src" value="customer_iam_role"><div><b>Cross-account IAM role</b><br><span class="muted">Devin calls sts:AssumeRole with External ID <code id="extid"></code> (deploy/customer-bedrock-role.yaml).</span>
       <div class="row"><input id="rolearn" placeholder="arn:aws:iam::123456789012:role/DevinBedrockAccess"></div></div></label>
     <label class="src" data-src="devin_managed"><input type="radio" name="src" value="devin_managed"><div><b>Devin-managed Bedrock</b><br><span class="muted">Cognition's AWS account; tokens are included in ACUs.</span></div></label>
-    <div class="row"><span class="muted">Region</span><input id="orgregion" style="width:130px"><button id="saveorg" class="ghost">Save settings</button><button id="testconn" class="ghost">Test connection</button></div>
+    <div class="row"><span class="muted">Region</span><input id="orgregion" style="width:120px"><span class="muted">ACU budget</span><input id="acubudget" type="number" min="0" step="1" style="width:90px" title="0 = no budget"></div>
+    <div class="row"><button id="saveorg" class="ghost">Save settings</button><button id="testconn" class="ghost">Test connection</button></div>
     <div id="conn" class="muted" style="font-size:12px;margin-top:6px"></div>
   </div>
 
   <div class="card span7">
-    <h2>Model routing (managed by Devin, served by Bedrock in <span id="route-region"></span>)</h2>
-    <label class="row" style="margin:0 0 8px"><input type="checkbox" id="managed" style="width:auto"> Let Devin choose models and fallbacks per task</label>
+    <div class="lbl">Model routing · Bedrock-first, defined exceptions</div>
+    <h2>Devin picks the model, Bedrock serves it in <span id="route-region"></span></h2>
+    <label class="row" style="margin:6px 0 8px"><input type="checkbox" id="managed" style="width:auto"> Let Devin choose models and fallbacks per task</label>
     <table id="routing"></table>
-    <div class="muted" style="font-size:12px;margin-top:6px">Throttling, capacity and model-access errors fall through to the next model. Uncheck to pin your own model list per role.</div>
+    <div class="muted" style="font-size:12px;margin-top:6px">Throttling, capacity and model-access errors fall through to the next Bedrock model. Defined exceptions (non-Bedrock models): <b>none</b>. Untick to pin your own model list per role.</div>
   </div>
 
-  <div class="card kpi"><div class="l">Bedrock calls (fallbacks)</div><div class="v" id="k-calls">0</div></div>
-  <div class="card kpi"><div class="l">Tokens in / out</div><div class="v" id="k-tokens">0</div></div>
-  <div class="card kpi"><div class="l">Bedrock spend</div><div class="v" id="k-bedrock">$0</div></div>
-  <div class="card kpi"><div class="l">ACUs metered</div><div class="v" id="k-acus">0</div></div>
-  <div class="card kpi"><div class="l">Customer ACU revenue</div><div class="v" id="k-rev">$0</div></div>
-  <div class="card kpi"><div class="l">AWS total capture</div><div class="v" id="k-aws" style="color:var(--aws)">$0</div></div>
+  <div class="section"><h3>What customers use Devin on AWS for</h3><span>Pick a use case. Model tiers are from the deck; in this demo every tier is served by the Bedrock models above.</span></div>
+  <div class="card span12" style="padding-top:8px"><div class="uc" id="uc"></div></div>
 
   <div class="card span5">
+    <div class="lbl" id="uc-lbl">Build health</div>
     <h2>Run a Devin task on Bedrock</h2>
-    <textarea id="task" rows="3">Fix the failing tests in this repo. pad_batch should pad to the longest sequence, and a sequence whose length equals a bucket size belongs in that bucket.</textarea>
+    <textarea id="task" rows="3"></textarea>
     <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
       <button id="run">Run agent</button><span class="muted" id="run-status"></span>
     </div>
-    <h2 style="margin-top:16px">Value pools (per run, illustrative)</h2>
-    <table id="pools"></table>
+    <h2 style="margin-top:16px;font-size:15px">Value pools (illustrative)</h2>
+    <table id="pools" class="pools"></table>
     <div class="muted" style="font-size:12px;margin-top:6px" id="assume"></div>
   </div>
 
   <div class="card span7">
-    <h2>Agent session <span id="sess-id" class="muted"></span></h2>
+    <div class="lbl">Execution and isolation · audit log</div>
+    <h2>Agent session <span id="sess-id" class="muted" style="font-size:13px"></span></h2>
     <div class="steps" id="steps"><span class="muted">No session yet.</span></div>
-    <div id="diffwrap" style="display:none"><h2 style="margin-top:12px">Diff</h2><pre id="diff"></pre></div>
-    <div id="sumwrap" style="display:none"><h2 style="margin-top:12px">Reviewer summary</h2><pre id="summary"></pre></div>
+    <div id="diffwrap" style="display:none"><h2 style="margin-top:12px;font-size:15px">Diff</h2><pre id="diff"></pre></div>
+    <div id="sumwrap" style="display:none"><h2 style="margin-top:12px;font-size:15px">Reviewer summary</h2><pre id="summary"></pre></div>
   </div>
 
+  <div class="section" id="trn"><h3>Demo: Devin moves an NVIDIA-only AI service to Trainium2</h3><span>From the finished Devin session and its PR. Nothing has run on a Trainium2 chip yet.</span></div>
+  <div class="card span12">
+    <div class="pipe">
+      <div class="p"><div class="k mono">01</div><div class="h">Analyze</div><div class="s">Find NVIDIA-only code</div></div><div class="ar">→</div>
+      <div class="p"><div class="k mono">02</div><div class="h">Refactor</div><div class="s">One setting picks the chip (<code>INFERENCE_BACKEND</code>)</div></div><div class="ar">→</div>
+      <div class="p"><div class="k mono">03</div><div class="h">Validate</div><div class="s">Match the original answers on CPU</div></div><div class="ar">→</div>
+      <div class="p"><div class="k mono">04</div><div class="h">Compile</div><div class="s">Build with AWS Neuron for Trn2, no device</div></div><div class="ar">→</div>
+      <div class="p next"><div class="k mono">05</div><div class="h">Run on chip</div><div class="s">Next: needs Trn2 quota</div></div><div class="ar">→</div>
+      <div class="p next focus"><div class="k mono">06</div><div class="h">Benchmark</div><div class="s">Next: speed and cost</div></div>
+    </div>
+    <div class="stats">
+      <div><b>10</b><span>NVIDIA-only parts found</span></div>
+      <div><b>43</b><span>tests match the original (CPU)</span></div>
+      <div class="acc"><b>3 / 3</b><span>model programs build for Trn2</span></div>
+      <div><b>$0</b><span>AWS spend · NVIDIA path unchanged</span></div>
+    </div>
+    <div class="row" style="margin-top:14px;flex-wrap:wrap;gap:18px;font-size:13px">
+      <a href="https://github.com/akkalra/cuda-inference-service/pull/2" target="_blank" rel="noopener">Trn2 PR (TorchNeuron) →</a>
+      <a href="https://github.com/akkalra/cuda-inference-service/pull/1" target="_blank" rel="noopener">trn1 / inf2 PR (torch-neuronx + NKI) →</a>
+      <a href="https://app.devin.ai/sessions/9e2ec0381b0b4812b777649fd22d36e9" target="_blank" rel="noopener">Devin session →</a>
+      <span class="muted">Complements AWS Transform and Neuron tooling. Still to prove: results, speed and cost on a real Trainium2 chip.</span>
+    </div>
+  </div>
+
+  <div class="section"><h3>First-party Devin drags ancillary AWS consumption</h3><span>Top row is metered from this org's sessions. Bottom row is where shipped work lands, for the selected use case (not metered).</span></div>
+  <div class="card span12"><div class="drag" id="drag"></div></div>
+
   <div class="card span5">
+    <div class="lbl">Commerce and metering</div>
     <h2>Spend by Bedrock model</h2>
     <table id="bymodel"></table>
   </div>
   <div class="card span7">
+    <div class="lbl">Audit log</div>
     <h2>Recent Bedrock calls</h2>
     <table id="recent"></table>
   </div>
+
+  <div class="section"><h3>90 days to Devin on AWS</h3><span>Items marked <span class="mono" style="color:var(--accent)">● in demo</span> are shown on this page.</span></div>
+  <div class="card span12"><div class="plan" id="plan"></div></div>
+
+  <footer>Proposal items come from the Devin for AWS deck (source: Amazon, Cognition and AWS SCA, Sept 15 2026). ACU price, COGS, revenue share and PPA commit are illustrative placeholders, not Cognition or AWS terms.</footer>
 </main>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -147,9 +263,96 @@ const authHeaders = () => {
   if (k) h["x-api-key"] = k; if (t) h["x-devin-session"] = t; return h;
 };
 const api = (path, method = "GET", body) => fetch(path, {method, headers: {"content-type": "application/json", ...authHeaders()}, body: body && JSON.stringify(body)});
-const usd = (x) => "$" + (x < 1 ? x.toFixed(4) : x.toFixed(2));
+const usd = (x) => "$" + (x < 1 ? x.toFixed(4) : x.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pct = (a, b) => b ? Math.min(100, 100 * a / b) : 0;
 let current = null;
+
+const BUILD_TASK = "Fix the failing tests in this repo. pad_batch should pad to the longest sequence, and a sequence whose length equals a bucket size belongs in that bucket.";
+const USE_CASES = [
+  {id: "legacy", name: "Legacy modernization", tier: "SWE-2", d: "COBOL, .NET and Java to modern AWS", s: "Lambda · ECS · RDS", ships: ["db", "compute", "ops"]},
+  {id: "cloud", name: "Cloud migration", tier: "SWE-2", d: "Move apps to AWS as infrastructure-as-code", s: "EKS · CDK · CloudFormation", ships: ["db", "net", "compute", "ops"]},
+  {id: "security", name: "Security remediation", tier: "SWE-2 + FRONTIER", d: "Turn security findings into fixes", s: "Security Hub · Inspector", ships: ["ops"]},
+  {id: "backlog", name: "Backlog burn-down", tier: "SWE-2 FLASH", d: "Tickets to reviewed PRs, in parallel", s: "Bedrock · EC2 sandboxes", ships: ["compute"]},
+  {id: "build", name: "Build health", tier: "SWE-2 FLASH", d: "Auto-fix failing builds and tests", s: "CodeBuild · CodePipeline", ships: ["compute", "ops"], task: BUILD_TASK, runnable: true},
+  {id: "inference", name: "Inference migration", tier: "SWE-2", d: "Port CUDA workloads to Trainium", s: "Trainium · Neuron", ships: ["compute", "ops"], pr: true,
+   task: "Port this CUDA inference service to AWS Trainium2 with AWS Neuron. Keep the CUDA path, validate against the original on CPU and compile for Trn2."},
+];
+let uc = USE_CASES.find(u => u.id === "build"), running = false;
+
+function renderUseCases() {
+  $("uc").innerHTML = USE_CASES.map(u => `<div class="t${u === uc ? " on" : ""}" data-id="${u.id}">
+    <div class="h"><span>${esc(u.name)}</span><span class="chip">${esc(u.tier)}</span></div>
+    <div class="d serif">${esc(u.d)}</div><div class="s">${esc(u.s)}</div>
+    <span class="run chip ${u.runnable ? "live" : u.pr ? "today" : "no"}">${u.runnable ? "runs here" : u.pr ? "see PR" : "pilot"}</span></div>`).join("");
+  document.querySelectorAll("#uc .t").forEach(el => el.onclick = () => {
+    uc = USE_CASES.find(u => u.id === el.dataset.id); renderUseCases(); applyUseCase();
+    if (uc.pr) $("trn").scrollIntoView({behavior: "smooth"});
+  });
+}
+function applyUseCase() {
+  $("uc-lbl").textContent = `${uc.name} · ${uc.tier}`;
+  $("task").value = uc.task || `${uc.d}.`;
+  $("run").disabled = running || !uc.runnable;
+  if (!running) $("run-status").innerHTML = uc.runnable ? "" : uc.pr
+    ? 'Ran as a full Devin session: <a href="https://github.com/akkalra/cuda-inference-service/pull/2" target="_blank" rel="noopener">PR #2</a>'
+    : "Pilot use case. The demo agent only has the build-health sample repo.";
+  renderDrag(lastSummary);
+}
+
+const DRAG = {
+  works: [["Inference", "Bedrock · Trainium"], ["Sandboxes", "EC2 · Fargate"], ["Storage", "S3 · EBS · EFS"], ["Build and ship", "CodeBuild · ECR"]],
+  ships: [["db", "Databases", "Aurora · DynamoDB · Redshift"], ["net", "Networking", "VPC · PrivateLink · CloudFront"],
+          ["compute", "Production compute", "Lambda · EKS · ECS"], ["ops", "Operate and secure", "CloudWatch · KMS · Security Hub"]],
+};
+let lastSummary = null;
+function renderDrag(s) {
+  const vp = s ? s.value_pools : {bedrock_total_usd: 0, of_which_runtime_usd: 0, of_which_other_aws_usd: 0};
+  const vals = [[usd(vp.bedrock_total_usd), "metered"], [usd(vp.of_which_runtime_usd), "metered"],
+                [usd(vp.of_which_other_aws_usd), "estimate, shared with build"], ["incl. in storage estimate", ""]];
+  $("drag").innerHTML = `<div class="rl">While Devin works</div>` +
+    DRAG.works.map(([k, v], i) => `<div class="c"><div class="k">${k}</div><div class="serif">${v}</div><div class="v mono">${vals[i][0]} <span class="muted">${vals[i][1]}</span></div></div>`).join("") +
+    `<div class="rl">After Devin ships</div>` +
+    DRAG.ships.map(([id, k, v]) => `<div class="c${uc.ships.includes(id) ? " hot" : ""}"><div class="k">${k}</div><div class="serif">${v}</div><div class="v muted">${uc.ships.includes(id) ? esc(uc.name) + " lands here" : "—"}</div></div>`).join("");
+}
+
+const PLAN = {
+  phases: ["Days 0–30 · Align", "Days 31–60 · Agree", "Days 61–90 · Launch"],
+  rows: [
+    ["Buy", [["Name sponsors and deal team", "Agree listing model"], [["ACU pricing and revenue share", 1], ["Seller comp and PPA drawdown", 1]], ["Sign agreement, listing live", ["ACU billing through AWS", 1]]]],
+    ["Run", [["Start security review", ["Measure tokens per ACU", 1]], ["Control plane live on AWS", ["Bedrock default, IAM auth", 1]], ["Security sign-off", "Evaluate SWE-2 hosting"]]],
+    ["Grow", [["Pick 10–15 lighthouses", ["Scope Trainium targets", 1]], [["Lighthouse POCs on Bedrock", 1], "Migration plays with GSIs"], ["Field enablement", "Joint GTM plan"]]],
+  ],
+  gates: [["Structure + LOI", "Cognition: ACU model · AWS: sponsor"], ["Terms + token mapping", "Cognition: POC · AWS: test account"], ["Preview live", "Cognition: results · AWS: GTM plan"]],
+};
+function renderPlan() {
+  const item = (x) => Array.isArray(x) ? `<div class="here">${esc(x[0])}</div>` : `<div>${esc(x)}</div>`;
+  $("plan").innerHTML = `<div></div>` + PLAN.phases.map(p => `<div class="hd">${p}</div>`).join("") +
+    PLAN.rows.map(([r, cols]) => `<div class="rl">${r}</div>` + cols.map(c => `<div class="cl serif">${c.map(item).join("")}</div>`).join("")).join("") +
+    `<div class="rl">Gate</div>` + PLAN.gates.map(([h, s], i) => `<div><div class="gate${i === 2 ? " focus" : ""}"><b>${h}</b><br><span style="font-size:12px">${s}</span></div></div>`).join("");
+}
+
+function renderArch(h, s, m) {
+  const o = m.org, chip = (c, t) => `<span class="chip ${c}">${t}</span>`, live = h.mode === "live";
+  const budget = o.acu_budget ? `${s.acus.toFixed(3)} of ${o.acu_budget} ACU budget used` : "no ACU budget set";
+  const rows = [
+    ["Identity", "IAM Identity Center, customer-controlled permissions", "proposed",
+     chip("sim", "simulated"), `SSO stand-in: ${esc(m.user.email)} → ${esc(o.name)}. Customer keys in ${m.credential_vault === "agentcore-identity" ? "AgentCore Identity" : "local vault (AgentCore Identity stand-in)"}; roles via STS External ID.`],
+    ["Commerce and metering", "AWS billing, ACU metering, budgets", "proposed",
+     chip("live", "metered"), `Per-call ACU ledger, ${budget}. Bills are illustrative: ${usd(s.commerce.aws_bill_usd)} on the customer's AWS bill.`],
+    ["Control plane", "Cognition orchestration, hosted on AWS", "proposed",
+     chip("live", "running"), "This gateway: login, routing and fallbacks, metering, sessions. Ships as a container for AWS."],
+    ["Execution and isolation", "Single-tenant VPC, one VM per session, audit logs", "today",
+     m.agent_runtime === "agentcore" ? chip("live", "agentcore") : chip("sim", "local"),
+     m.agent_runtime === "agentcore" ? "One AgentCore Runtime microVM per session. Every Bedrock call is in the audit log below." : "Local sandbox (demo, not isolated). Set AGENTCORE_RUNTIME_ARN for one microVM per session. Audit log below."],
+    ["Model routing", "Bedrock-first, defined exceptions", "proposed",
+     chip(live ? "live" : "sim", live ? "live" : "mock"), `${s.calls} of ${s.calls} calls on Amazon Bedrock · ${s.fallbacks} fallbacks · 0 exceptions${live ? "" : " (mock Bedrock responses)"}`],
+    ["Tools", "AWS Transform agents, Neuron SDK via MCP", "proposed",
+     chip("no", "not yet"), 'Not wired into this gateway. The Trainium demo used the Neuron SDK directly (<a href="#trn">below</a>).'],
+  ];
+  $("arch").innerHTML = `<tr><th style="width:15%">Layer</th><th style="width:27%">Proposal</th><th style="width:9%">Deck</th><th style="width:9%">Demo</th><th>What runs here</th></tr>` +
+    rows.map(([l, d, st, dc, w]) => `<tr><td>${l}</td><td class="serif">${d}</td><td>${chip(st, st)}</td><td>${dc}</td><td>${w}</td></tr>`).join("");
+}
 
 function pools(vp) {
   const rows = [
@@ -164,23 +367,25 @@ function pools(vp) {
     ["Cognition contribution", vp.cognition_contribution_usd, ""],
   ];
   const max = Math.max(...rows.map(r => r[1]), 1e-9);
-  return rows.map(([l, v, n]) => `<tr><td>${esc(l)}</td><td style="width:35%"><div class="bar" style="width:${Math.max(1, 100*v/max)}%"></div></td><td class="num">${usd(v)}</td><td class="muted">${n}</td></tr>`).join("");
+  return rows.map(([l, v, n]) => `<tr><td>${esc(l)}</td><td style="width:30%"><div class="bar"><div style="width:${Math.max(1, 100*v/max)}%"></div></div></td><td class="num">${usd(v)}</td><td class="muted">${n}</td></tr>`).join("");
 }
 
 function renderSession(s) {
   if (!s) return;
   $("sess-id").textContent = `${s.id} · ${s.runtime} · ${s.status} · ${s.usage.calls} Bedrock calls · ${s.usage.acus.toFixed(3)} ACUs`;
   $("steps").innerHTML = (s.plan ? `<div class="step model"><b>plan</b>\n${esc(s.plan)}</div>` : "") + s.steps.map(st => {
-    if (st.type === "model") return `<div class="step model"><b>bedrock · ${st.role}</b> ${esc(st.model_id)} <span class="tag ${st.billed_to}">${esc(st.credential)}</span>${st.fallback_from && st.fallback_from.length ? ` <span class="fb">↪ fell back from ${esc(st.fallback_from.join(", "))}</span>` : ""} · in ${st.tokens_in} / out ${st.tokens_out} · ${st.acus} ACU${st.text ? "\n" + esc(st.text) : ""}</div>`;
-    if (st.type === "tool") return `<div class="step tool"><b>tool · ${st.name}</b> ${esc(JSON.stringify(st.args))}\n<span class="muted">${esc(st.output.slice(0, 600))}</span></div>`;
+    if (st.type === "model") return `<div class="step model"><b>bedrock · ${esc(st.role)}</b> ${esc(st.model_id)} <span class="tag ${esc(st.billed_to)}">${esc(st.credential)}</span>${st.fallback_from && st.fallback_from.length ? ` <span class="fb">↪ fell back from ${esc(st.fallback_from.join(", "))}</span>` : ""} · in ${st.tokens_in} / out ${st.tokens_out} · ${st.acus} ACU${st.text ? "\n" + esc(st.text) : ""}</div>`;
+    if (st.type === "tool") return `<div class="step tool"><b>tool · ${esc(st.name)}</b> ${esc(JSON.stringify(st.args))}\n<span class="muted">${esc(st.output.slice(0, 600))}</span></div>`;
     return `<div class="step error">${esc(st.text)}</div>`;
   }).join("");
   $("steps").scrollTop = $("steps").scrollHeight;
   if (s.diff) { $("diffwrap").style.display = ""; $("diff").innerHTML = s.diff.split("\n").map(l => l.startsWith("+") && !l.startsWith("+++") ? `<span class="add">${esc(l)}</span>` : l.startsWith("-") && !l.startsWith("---") ? `<span class="del">${esc(l)}</span>` : esc(l)).join("\n"); }
   if ((s.status === "finished" || s.status === "unverified") && s.summary) { $("sumwrap").style.display = ""; $("summary").textContent = s.summary; }
   $("pools").innerHTML = pools(s.usage.value_pools);
-  $("run").disabled = s.status === "running";
-  $("run-status").textContent = s.status === "running" ? "running on Bedrock…" : s.status;
+  running = s.status === "running";
+  $("run").disabled = running || !uc.runnable;
+  if (running) $("run-status").textContent = "running on Bedrock…";
+  else if (uc.runnable) $("run-status").textContent = s.status;
 }
 
 const short = (m) => m.replace(/-\d{8}-v\d+:\d+$/, "");
@@ -192,7 +397,7 @@ function renderMe(m) {
   $("login").style.display = "none";
   const o = m.org;
   $("who").textContent = `${m.user.email} · ${o.name}`;
-  $("org-name").textContent = o.name; $("f-user").textContent = m.user.email;
+  $("org-name").textContent = o.name; $("org-name2").textContent = o.name; $("f-user").textContent = `${m.user.email} · IAM Identity Center (simulated)`;
   $("vault").textContent = m.credential_vault === "agentcore-identity" ? "AgentCore Identity" : "the local vault (demo stand-in for AgentCore Identity)";
   $("provider").textContent = o.provider_name; $("extid").textContent = o.external_id;
   $("keyhint").textContent = o.has_api_key ? `Key on file: ••••${o.key_last4}` : "No key on file yet.";
@@ -203,6 +408,7 @@ function renderMe(m) {
   if (!orgDirty) {
     document.querySelectorAll(".src").forEach(el => { const on = el.dataset.src === o.credential_source; el.classList.toggle("on", on); el.querySelector("input").checked = on; });
     $("rolearn").value = o.role_arn; $("orgregion").value = o.region; $("managed").checked = o.devin_managed_routing;
+    $("acubudget").value = o.acu_budget;
   }
   if (!orgDirty) renderRouting(m.routing);
 }
@@ -215,30 +421,43 @@ function renderRouting(routing) {
     return;
   }
   $("routing").innerHTML = "<tr><th>Task</th><th>Primary</th><th>Fallbacks</th></tr>" + Object.entries(routing).map(([r, ms]) =>
-    `<tr><td>${r}</td><td><b>${esc(short(ms[0]))}</b></td><td class="muted">${ms.slice(1).map(x => esc(short(x))).join(" → ") || "—"}</td></tr>`).join("");
+    `<tr><td>${esc(r)}</td><td><b>${esc(short(ms[0]))}</b></td><td class="muted">${ms.slice(1).map(x => esc(short(x))).join(" → ") || "—"}</td></tr>`).join("");
 }
 
 async function refresh() {
   const r = await api("/v1/stats"); if (!r.ok) return;
-  const d = await r.json(), h = d.health, s = d.summary;
+  const d = await r.json(), h = d.health, s = d.summary, vp = s.value_pools, cm = s.commerce;
+  lastSummary = s;
   renderMe(d.me); $("rt").textContent = "agent runtime: " + h.agent_runtime;
   $("mode").textContent = h.mode === "live" ? "LIVE Bedrock" : "MOCK mode"; $("mode").className = "pill " + h.mode;
   $("auth").textContent = "auth: " + h.auth; $("region").textContent = h.region;
   $("guard").textContent = h.guardrail ? "Guardrail: on" : "Guardrail: off";
-  $("models").textContent = [...new Set(Object.values(h.role_models))].map(m => m.replace(/-\d{8}-v\d+:\d+$/, "")).join(" · ");
+  $("models").textContent = [...new Set(Object.values(h.role_models))].map(short).join(" · ");
   $("k-calls").textContent = `${s.calls} (${s.fallbacks})`;
   $("k-tokens").textContent = `${(s.input_tokens/1000).toFixed(1)}k / ${(s.output_tokens/1000).toFixed(1)}k`;
-  $("k-bedrock").textContent = usd(s.value_pools.bedrock_total_usd);
+  $("k-share").textContent = s.calls ? "100%" : "—";
+  $("k-tpa").textContent = s.tokens_per_acu ? Math.round(s.tokens_per_acu).toLocaleString() : "—";
+  $("k-exec").textContent = h.agent_runtime === "agentcore" ? "AgentCore Runtime" : "local sandbox (demo)";
+  $("k-bedrock").textContent = usd(vp.bedrock_total_usd);
+  $("k-infra").textContent = usd(vp.of_which_runtime_usd + vp.of_which_other_aws_usd);
   $("k-acus").textContent = s.acus.toFixed(3);
-  $("k-rev").textContent = usd(s.value_pools.customer_revenue_usd);
-  $("k-aws").textContent = usd(s.value_pools.aws_total_capture_usd);
+  $("k-rev").textContent = usd(vp.customer_revenue_usd);
+  $("k-seller").textContent = usd(cm.seller_quota_retired_usd);
+  $("k-aws").textContent = usd(vp.aws_total_capture_usd);
+  $("k-ppa").textContent = `${usd(cm.ppa_drawdown_usd)} of ${usd(cm.ppa_commit_usd)}`;
+  $("b-ppa").style.width = Math.max(cm.ppa_drawdown_usd ? 0.5 : 0, pct(cm.ppa_drawdown_usd, cm.ppa_commit_usd)) + "%";
+  const b = d.me.org && d.me.org.acu_budget;
+  $("k-budget").textContent = b ? `${s.acus.toFixed(3)} of ${b} ACUs` : "none";
+  $("b-budget").style.width = (b ? pct(s.acus, b) : 0) + "%";
+  if (d.me.user) renderArch(h, s, d.me);
+  renderDrag(s);
   const a = s.assumptions;
-  $("assume").textContent = `Assumptions: $${a.acu_price_usd}/ACU · AWS COGS $${a.aws_cogs_per_acu_usd}/ACU · AWS rev share ${(a.aws_revenue_share*100).toFixed(0)}% · runtime $${a.runtime_usd_per_hour}/hr · other AWS ${(a.other_aws_pct_of_infra*100).toFixed(0)}% of infra`;
-  if (!current) $("pools").innerHTML = pools(s.value_pools);
+  $("assume").textContent = `Assumptions: $${a.acu_price_usd}/ACU · AWS COGS $${a.aws_cogs_per_acu_usd}/ACU · AWS rev share ${(a.aws_revenue_share*100).toFixed(0)}% · runtime $${a.runtime_usd_per_hour}/hr · other AWS ${(a.other_aws_pct_of_infra*100).toFixed(0)}% of infra · PPA commit ${usd(a.ppa_commit_usd)}`;
+  if (!current) $("pools").innerHTML = pools(vp);
   $("bymodel").innerHTML = "<tr><th>Model</th><th class=num>Calls</th><th class=num>Tokens</th><th class=num>Spend</th></tr>" +
-    Object.entries(s.by_model).map(([m, v]) => `<tr><td>${esc(m)}</td><td class=num>${v.calls}</td><td class=num>${v.input_tokens + v.output_tokens}</td><td class=num>${usd(v.bedrock_usd)}</td></tr>`).join("");
-  $("recent").innerHTML = "<tr><th>Time</th><th>Org</th><th>Source</th><th>Role</th><th>Model</th><th>Billed to</th><th class=num>In/Out</th><th class=num>ms</th><th>Request ID</th></tr>" +
-    d.recent.slice(0, 15).map(c => `<tr><td>${new Date(c.ts*1000).toLocaleTimeString()}</td><td>${esc(c.org_id)}</td><td>${c.source}</td><td>${c.role}</td><td>${esc(short(c.model_id))}${c.fallback_from.length ? ' <span class="fb" title="fell back from ' + esc(c.fallback_from.join(", ")) + '">↪</span>' : ""}</td><td><span class="tag ${c.billed_to}">${c.billed_to}</span></td><td class=num>${c.input_tokens}/${c.output_tokens}</td><td class=num>${c.latency_ms}</td><td class=muted>${esc(c.request_id.slice(0, 13))}</td></tr>`).join("");
+    Object.entries(s.by_model).map(([m, v]) => `<tr><td>${esc(short(m))}</td><td class=num>${v.calls}</td><td class=num>${v.input_tokens + v.output_tokens}</td><td class=num>${usd(v.bedrock_usd)}</td></tr>`).join("");
+  $("recent").innerHTML = "<tr><th>Time</th><th>Source</th><th>Role</th><th>Model</th><th>Billed to</th><th class=num>In/Out</th><th class=num>ms</th><th>Request ID</th></tr>" +
+    d.recent.slice(0, 15).map(c => `<tr><td>${new Date(c.ts*1000).toLocaleTimeString()}</td><td>${esc(c.source)}</td><td>${esc(c.role)}</td><td>${esc(short(c.model_id))}${c.fallback_from.length ? ' <span class="fb" title="fell back from ' + esc(c.fallback_from.join(", ")) + '">↪</span>' : ""}</td><td><span class="tag ${esc(c.billed_to)}">${esc(c.billed_to)}</span></td><td class=num>${c.input_tokens}/${c.output_tokens}</td><td class=num>${c.latency_ms}</td><td class=muted>${esc(c.request_id.slice(0, 13))}</td></tr>`).join("");
   const sess = current ? d.sessions.find(x => x.id === current) : d.sessions[0];
   if (sess) { current = sess.id; renderSession(sess); }
 }
@@ -246,7 +465,9 @@ async function refresh() {
 $("run").onclick = async () => {
   $("run").disabled = true; $("diffwrap").style.display = "none"; $("sumwrap").style.display = "none";
   const r = await api("/v1/agent/sessions", "POST", {task: $("task").value});
-  const s = await r.json(); current = s.id; refresh();
+  const s = await r.json();
+  if (!r.ok) { $("run-status").innerHTML = `<span class="err">${esc(s.detail)}</span>`; $("run").disabled = false; return; }
+  current = s.id; refresh();
 };
 $("signin").onclick = async () => {
   const r = await api("/v1/auth/login", "POST", {email: $("email").value});
@@ -258,7 +479,7 @@ $("logout").onclick = async () => { await api("/v1/auth/logout", "POST"); sessio
 document.querySelectorAll(".src").forEach(el => el.onclick = () => {
   orgDirty = true; document.querySelectorAll(".src").forEach(x => { x.classList.toggle("on", x === el); x.querySelector("input").checked = x === el; });
 });
-["rolearn", "orgregion", "managed"].forEach(id => $(id).addEventListener("input", () => orgDirty = true));
+["rolearn", "orgregion", "managed", "acubudget"].forEach(id => $(id).addEventListener("input", () => orgDirty = true));
 $("managed").addEventListener("change", () => {
   orgDirty = true; if (!me) return;
   const pins = Object.fromEntries(Object.entries(me.org.routing_overrides).filter(([, ms]) => ms.length));
@@ -266,7 +487,8 @@ $("managed").addEventListener("change", () => {
 });
 $("saveorg").onclick = async () => {
   const src = document.querySelector(".src input:checked")?.value;
-  const body = {credential_source: src, role_arn: $("rolearn").value, region: $("orgregion").value, devin_managed_routing: $("managed").checked};
+  const body = {credential_source: src, role_arn: $("rolearn").value, region: $("orgregion").value,
+                devin_managed_routing: $("managed").checked, acu_budget: Number($("acubudget").value || 0)};
   if (!body.devin_managed_routing)
     body.routing_overrides = Object.fromEntries([...document.querySelectorAll(".pin")].map(el => [el.dataset.role, el.value.split(",").map(x => x.trim()).filter(Boolean)]));
   const r = await api("/v1/org/settings", "PUT", body);
@@ -287,6 +509,7 @@ $("testconn").onclick = async () => {
   $("conn").innerHTML = d.ok ? `<span class="ok">OK</span> · ${esc(short(d.model_id))} · ${esc(d.credential)} · billed to ${esc(d.billed_to)} · ${esc(d.request_id)}` : `<span class="err">${esc(d.error)}</span>`;
   refresh();
 };
+renderUseCases(); applyUseCase(); renderPlan();
 refresh(); setInterval(refresh, 1500);
 </script>
 </body>

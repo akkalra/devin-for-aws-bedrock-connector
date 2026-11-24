@@ -219,3 +219,19 @@ def test_assumed_role_client_signs_sigv4_despite_process_api_key(monkeypatch):
 def test_external_id_is_stable_across_restarts():
     from bedrock_connector.tenancy import TenantStore
     assert TenantStore().orgs["globex"].external_id == TenantStore().orgs["globex"].external_id
+
+
+def test_acu_budget_blocks_new_sessions_and_commerce_is_reported():
+    c = TestClient(create_app(Settings()))
+    h = login(c, "dev@globex.com")
+    assert c.put("/v1/org/settings", headers=h, json={"acu_budget": -1}).status_code == 400
+    assert c.put("/v1/org/settings", headers=h, json={"acu_budget": "10"}).status_code == 400
+    me = c.put("/v1/org/settings", headers=h, json={"credential_source": "devin_managed", "acu_budget": 0.000001}).json()
+    assert me["org"]["acu_budget"] == 0.000001
+    r = c.post("/v1/chat/completions", headers=h, json={"messages": [{"role": "user", "content": "hi"}]})
+    assert r.status_code == 200
+    r = c.post("/v1/agent/sessions", headers=h, json={"task": "fix tests"})
+    assert r.status_code == 402 and "budget" in r.json()["detail"]
+    s = c.get("/v1/stats", headers=h).json()["summary"]
+    assert s["commerce"]["ppa_drawdown_usd"] == pytest.approx(s["value_pools"]["customer_revenue_usd"])
+    assert s["tokens_per_acu"] > 0

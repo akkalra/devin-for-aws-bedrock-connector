@@ -64,7 +64,13 @@ def create_app(settings: Settings | None = None, client=None, vault=None) -> Fas
             raise HTTPException(403, "sign in as an org admin")
         return p
 
+    def check_budget(org: Org) -> None:
+        if org.acu_budget and ledger.summary(org_id=org.id)["acus"] >= org.acu_budget:
+            raise HTTPException(402, f"{org.name} has used its {org.acu_budget:g} ACU budget; "
+                                     "an org admin can raise it in settings")
+
     def call_bedrock(conv: dict, requested: str, source: str, session_id: str, p: Principal):
+        check_budget(p.org)
         ctx = CallContext(p.org, p.user.email if p.user else "anonymous", session_id, source)
         try:
             res, _ = inference.converse(ctx, "coder", conv["messages"], system=conv["system"], tools=conv["tools"],
@@ -206,6 +212,7 @@ def create_app(settings: Settings | None = None, client=None, vault=None) -> Fas
             raise HTTPException(403, f"repo must be under AGENT_REPO_ROOT ({allowed})")
         if not repo.is_dir():
             raise HTTPException(400, f"repo not found: {repo}")
+        check_budget(p.org)
         sess = agent.create_session(task, str(repo), workdir=os.environ.get("AGENT_WORKDIR", "runs"),
                                     org=p.org, user_id=p.user.email if p.user else "")
         dispatcher.run_async(sess)

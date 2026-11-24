@@ -76,6 +76,8 @@ class Settings:
     aws_revenue_share: float = field(default_factory=lambda: _f("AWS_REVENUE_SHARE", 0.20))
     runtime_usd_per_hour: float = field(default_factory=lambda: _f("RUNTIME_USD_PER_HOUR", 0.40))
     other_aws_pct_of_infra: float = field(default_factory=lambda: _f("OTHER_AWS_PCT_OF_INFRA", 0.10))
+    # Customer's AWS private pricing agreement (PPA) commit that Devin spend draws down.
+    ppa_commit_usd: float = field(default_factory=lambda: _f("PPA_COMMIT_USD", 1_000_000.0))
 
     def __post_init__(self):
         self.role_models = {

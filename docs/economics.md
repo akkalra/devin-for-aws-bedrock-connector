@@ -10,6 +10,7 @@ parameter can be set through an environment variable.
 | AWS revenue share | 20% | `AWS_REVENUE_SHARE` | assumption: negotiated first-party / OEM share |
 | Agent runtime | $0.40/hr | `RUNTIME_USD_PER_HOUR` | ~m7i.2xlarge on-demand |
 | Other AWS services | 10% of infra | `OTHER_AWS_PCT_OF_INFRA` | S3, networking, logging |
+| Customer PPA commit | $1,000,000 | `PPA_COMMIT_USD` | Placeholder commit that Devin spend and the customer's own Bedrock bill draw down |
 | Bedrock token prices | see `config.py` | `BEDROCK_PRICING_JSON` | Bedrock on-demand list prices; verify per region |
 
 ```
@@ -42,3 +43,7 @@ aws_capture     = aws_revenue_share + cognition_infra + customer_bedrock_direct
 
 The ACU bill gets smaller, the customer's AWS Bedrock consumption (and commit drawdown) gets
 larger, and AWS total capture is about the same.
+
+Orgs can also set an ACU budget (`acu_budget`, 0 = none). When an org's metered ACUs reach it, new agent sessions and gateway calls return HTTP 402.
+
+`tokens_per_acu` in `/v1/stats` maps tokens to ACUs as if every Bedrock call were Devin-managed. The 90-day plan's "measure tokens per ACU" step uses this number.

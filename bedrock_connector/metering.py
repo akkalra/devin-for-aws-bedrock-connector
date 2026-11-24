@@ -16,6 +16,7 @@ nothing is counted twice:
     customer_bedrock      = Bedrock on the customer's own account        (customer -> AWS)
     aws_total_capture     = aws_revenue_share + cognition_aws_infra + customer_bedrock
     cognition_margin      = customer_revenue - aws_revenue_share - cognition_aws_infra
+    ppa_drawdown          = customer_revenue + customer_bedrock   (both land on the customer's AWS bill)
 """
 from __future__ import annotations
 
@@ -117,6 +118,9 @@ class Ledger:
         acus = infra / s.aws_cogs_per_acu_usd
         revenue = acus * s.acu_price_usd
         rev_share = revenue * s.aws_revenue_share
+        tokens = sum(c.input_tokens + c.output_tokens for c in calls)
+        # Tokens per ACU as if every Bedrock call were Devin-managed, so BYO-credential orgs still map tokens to ACUs.
+        acu_basis = (bedrock + customer_bedrock + runtime) * (1 + s.other_aws_pct_of_infra) / s.aws_cogs_per_acu_usd
         by_model: dict[str, dict] = {}
         for c in calls:
             m = by_model.setdefault(c.model_id, {"calls": 0, "input_tokens": 0, "output_tokens": 0, "bedrock_usd": 0.0})
@@ -131,7 +135,14 @@ class Ledger:
             "output_tokens": sum(c.output_tokens for c in calls),
             "runtime_seconds": runtime_s,
             "acus": acus,
+            "tokens_per_acu": tokens / acu_basis if acu_basis else 0.0,
             "by_model": by_model,
+            "commerce": {
+                "aws_bill_usd": revenue + customer_bedrock,
+                "ppa_commit_usd": s.ppa_commit_usd,
+                "ppa_drawdown_usd": revenue + customer_bedrock,
+                "seller_quota_retired_usd": revenue,
+            },
             "value_pools": {
                 "customer_revenue_usd": revenue,
                 "aws_revenue_share_usd": rev_share,
@@ -150,6 +161,7 @@ class Ledger:
                 "aws_revenue_share": s.aws_revenue_share,
                 "runtime_usd_per_hour": s.runtime_usd_per_hour,
                 "other_aws_pct_of_infra": s.other_aws_pct_of_infra,
+                "ppa_commit_usd": s.ppa_commit_usd,
             },
         }
 
