@@ -183,6 +183,10 @@ def create_app(settings: Settings | None = None, client=None, vault=None) -> Fas
 
     @app.post("/v1/org/test-connection")
     def test_connection(p: Principal = Depends(org_admin)):
+        try:
+            check_budget(p.org)
+        except HTTPException as e:
+            return {"ok": False, "error": e.detail}
         ctx = CallContext(p.org, p.user.email, "test-connection", "settings")
         try:
             res, rec = inference.converse(ctx, "fast", [{"role": "user", "content": [{"text": "Reply: Bedrock OK"}]}],

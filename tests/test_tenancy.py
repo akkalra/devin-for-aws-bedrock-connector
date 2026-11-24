@@ -232,6 +232,10 @@ def test_acu_budget_blocks_new_sessions_and_commerce_is_reported():
     assert r.status_code == 200
     r = c.post("/v1/agent/sessions", headers=h, json={"task": "fix tests"})
     assert r.status_code == 402 and "budget" in r.json()["detail"]
+    calls = c.get("/v1/stats", headers=h).json()["summary"]["calls"]
+    t = c.post("/v1/org/test-connection", headers=h).json()
+    assert t["ok"] is False and "budget" in t["error"]
+    assert c.get("/v1/stats", headers=h).json()["summary"]["calls"] == calls
     s = c.get("/v1/stats", headers=h).json()["summary"]
     assert s["commerce"]["ppa_drawdown_usd"] == pytest.approx(s["value_pools"]["customer_revenue_usd"])
     assert s["tokens_per_acu"] > 0
