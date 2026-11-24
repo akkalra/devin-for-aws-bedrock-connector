@@ -175,7 +175,7 @@
     <label class="src" data-src="customer_iam_role"><input type="radio" name="src" value="customer_iam_role"><div><b>Cross-account IAM role</b><br><span class="muted">Devin calls sts:AssumeRole with External ID <code id="extid"></code> (deploy/customer-bedrock-role.yaml).</span>
       <div class="row"><input id="rolearn" placeholder="arn:aws:iam::123456789012:role/DevinBedrockAccess"></div></div></label>
     <label class="src" data-src="devin_managed"><input type="radio" name="src" value="devin_managed"><div><b>Devin-managed Bedrock</b><br><span class="muted">Cognition's AWS account; tokens are included in ACUs.</span></div></label>
-    <div class="row"><span class="muted">Region</span><input id="orgregion" style="width:120px"><span class="muted">ACU budget</span><input id="acubudget" type="number" min="0" step="1" style="width:90px" title="0 = no budget"></div>
+    <div class="row"><span class="muted">Region</span><input id="orgregion" style="width:120px"><span class="muted">ACU budget</span><input id="acubudget" type="number" min="0" step="any" style="width:90px" title="0 = no budget"></div>
     <div class="row"><button id="saveorg" class="ghost">Save settings</button><button id="testconn" class="ghost">Test connection</button></div>
     <div id="conn" class="muted" style="font-size:12px;margin-top:6px"></div>
   </div>
