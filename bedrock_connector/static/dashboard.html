@@ -487,6 +487,7 @@ $("managed").addEventListener("change", () => {
 });
 $("saveorg").onclick = async () => {
   const src = document.querySelector(".src input:checked")?.value;
+  if (!$("acubudget").validity.valid) { $("conn").innerHTML = '<span class="err">ACU budget must be a number of 0 or more (0 = no budget).</span>'; return; }
   const body = {credential_source: src, role_arn: $("rolearn").value, region: $("orgregion").value,
                 devin_managed_routing: $("managed").checked, acu_budget: Number($("acubudget").value || 0)};
   if (!body.devin_managed_routing)
